@@ -1,4 +1,5 @@
 @page "/crontab"
+@using Meziantou.Framework.Scheduling
 
 <h1>Crontab</h1>
 <p><a href="https://github.com/atifaziz/NCrontab/wiki/Crontab-Expression">Crontab documentation</a></p>
@@ -25,9 +26,9 @@
     {
         try
         {
-            var schedule = NCrontab.CrontabSchedule.Parse(text ?? "");
+            var schedule = CronExpression.Parse(text ?? "");
 #pragma warning disable RS0030 // Do not use banned APIs
-            result = string.Join('\n', schedule.GetNextOccurrences(DateTime.Now, DateTime.MaxValue).Take(50));
+            result = string.Join('\n', schedule.GetNextOccurrences(DateTime.Now).Take(50));
 #pragma warning restore RS0030
         }
         catch (Exception ex)

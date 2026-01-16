@@ -1,5 +1,5 @@
 @page "/loremipsum"
-@using LoremNET
+@using Meziantou.OnlineTools.Utils
 
 <h1>Lorem Ipsum</h1>
 
@@ -31,6 +31,6 @@
 
     void Generate()
     {
-        result = Lorem.Paragraphs(wordCount, sentenceCount, paragraphCount);
+        result = LoremIpsumGenerator.Paragraphs(wordCount, sentenceCount, paragraphCount);
     }
 }
