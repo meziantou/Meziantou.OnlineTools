@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Meziantou.Framework.CommandLine" Version="3.0.8" />
-    <PackageReference Include="Meziantou.Framework.Unicode" Version="1.0.4" />
+    <PackageReference Include="Meziantou.Framework.Unicode" Version="1.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.1" PrivateAssets="all" />
     <PackageReference Include="Meziantou.AspNetCore.Components" Version="2.0.27" />
