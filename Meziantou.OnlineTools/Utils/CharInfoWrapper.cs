@@ -1,3 +1,4 @@
+using System.Text;
 using Meziantou.Framework;
 
 namespace Meziantou.OnlineTools.Utils;
@@ -10,6 +11,12 @@ public sealed record CharInfoWrapper(UnicodeCharacterInfo CharInfo)
     public string? Block => CharInfo.Block?.Name;
     public string Name => CharInfo.Name ?? CharInfo.Unicode1Name ?? "";
     public string Escape => GetEscapeString(CharInfo.Rune.Value);
+    public string Utf8Sequence => GetByteSequence(Encoding.UTF8.GetBytes(CharInfo.Rune.ToString()));
+    public string Utf16Sequence => GetByteSequence(Encoding.Unicode.GetBytes(CharInfo.Rune.ToString()));
+    public string Utf32Sequence => GetByteSequence(Encoding.UTF32.GetBytes(CharInfo.Rune.ToString()));
+
+    private static string GetByteSequence(byte[] bytes)
+        => string.Join(" ", bytes.Select(b => b.ToString("X2", CultureInfo.InvariantCulture)));
 
     private static string GetEscapeString(int value)
     {
