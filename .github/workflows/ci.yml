@@ -35,7 +35,7 @@ jobs:
           meziantou.html append-version --file-pattern "Meziantou.OnlineTools/bin/Release/net10.0/publish/wwwroot/**/*.html"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: wwwroot
           path: Meziantou.OnlineTools/bin/Release/net10.0/publish/wwwroot
