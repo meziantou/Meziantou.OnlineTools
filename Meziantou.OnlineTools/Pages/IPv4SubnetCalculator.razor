@@ -1,0 +1,203 @@
+@page "/ipv4-subnet-calculator"
+@using System.Globalization
+@using System.Net
+@using System.Net.Sockets
+@using Meziantou.Framework
+@inject NavigationManager NavigationManager
+
+<h1>IPv4 subnet calculator</h1>
+
+<p>Enter an IPv4 CIDR such as <code>192.168.0.1/24</code>.</p>
+
+<div class="form-group">
+    <label for="cidrInput">CIDR</label>
+    <input id="cidrInput" class="form-control code" @oninput="OnInputChanged" value="@Cidr" placeholder="192.168.0.1/24" />
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (result != null)
+{
+    <ResultValueList Values="GetResultValues(result.Value)" />
+}
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "value")]
+    public string? Cidr { get; set; }
+
+    private string? errorMessage;
+    private SubnetResult? result;
+
+    protected override void OnParametersSet()
+    {
+        Compute();
+    }
+
+    private void OnInputChanged(ChangeEventArgs e)
+    {
+        Cidr = e.Value?.ToString();
+        Compute();
+    }
+
+    private void Compute()
+    {
+        Cidr ??= "192.168.0.1/24";
+        Cidr = Cidr.Trim();
+
+        if (!TryCompute(Cidr, out var subnetResult, out var error))
+        {
+            errorMessage = error;
+            result = null;
+            NavigationManager.UpdateUrlUsingParameters(this, replaceHistory: true);
+            return;
+        }
+
+        errorMessage = null;
+        result = subnetResult;
+        NavigationManager.UpdateUrlUsingParameters(this, replaceHistory: true);
+    }
+
+    private static bool TryCompute(string cidr, out SubnetResult subnetResult, out string? error)
+    {
+        subnetResult = default;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(cidr))
+        {
+            error = "Please enter an IPv4 CIDR.";
+            return false;
+        }
+
+        var slashIndex = cidr.IndexOf('/');
+        if (slashIndex <= 0 || slashIndex != cidr.LastIndexOf('/'))
+        {
+            error = "Invalid CIDR format. Expected something like 192.168.0.1/24.";
+            return false;
+        }
+
+        var addressText = cidr[..slashIndex].Trim();
+        var prefixText = cidr[(slashIndex + 1)..].Trim();
+
+        if (!IPAddress.TryParse(addressText, out var address) || address.AddressFamily != AddressFamily.InterNetwork)
+        {
+            error = "The address must be a valid IPv4 address.";
+            return false;
+        }
+
+        if (!int.TryParse(prefixText, NumberStyles.None, CultureInfo.InvariantCulture, out var prefixLength) || prefixLength < 0 || prefixLength > 32)
+        {
+            error = "The prefix length must be an integer between 0 and 32.";
+            return false;
+        }
+
+        var addressValue = IPv4ToUInt32(address);
+        var maskValue = prefixLength == 0 ? 0u : uint.MaxValue << (32 - prefixLength);
+        var networkAddressValue = addressValue & maskValue;
+        var broadcastAddressValue = networkAddressValue | ~maskValue;
+
+        var networkMask = UInt32ToIPv4(maskValue);
+        var networkAddress = UInt32ToIPv4(networkAddressValue);
+        var broadcastAddress = UInt32ToIPv4(broadcastAddressValue);
+
+        var firstAddressValue = prefixLength >= 31 ? networkAddressValue : networkAddressValue + 1;
+        var lastAddressValue = prefixLength >= 31 ? broadcastAddressValue : broadcastAddressValue - 1;
+
+        var firstAddress = UInt32ToIPv4(firstAddressValue);
+        var lastAddress = UInt32ToIPv4(lastAddressValue);
+        var networkSize = 1UL << (32 - prefixLength);
+        var usableHostsCount = prefixLength >= 31 ? networkSize : networkSize - 2;
+
+        var ipNetwork = new IPNetwork(networkAddress, prefixLength);
+
+        subnetResult = new SubnetResult(
+            ipNetwork,
+            networkAddress,
+            networkMask,
+            networkSize,
+            usableHostsCount,
+            firstAddress,
+            lastAddress,
+            broadcastAddress,
+            GetIPv4Class(address));
+
+        return true;
+    }
+
+    private static IReadOnlyList<ResultValue> GetResultValues(SubnetResult subnetResult)
+    {
+        return
+        [
+            new("Netmask", subnetResult.Network.ToString()),
+            new("Network address", subnetResult.NetworkAddress.ToString()),
+            new("Network mask", subnetResult.NetworkMask.ToString()),
+            new("Network mask in binary", ToBinaryMask(subnetResult.NetworkMask)),
+            new("Network size", subnetResult.NetworkSize.ToString(CultureInfo.InvariantCulture)),
+            new("Usable hosts count", subnetResult.UsableHostsCount.ToString(CultureInfo.InvariantCulture)),
+            new("First address", subnetResult.FirstAddress.ToString()),
+            new("Last address", subnetResult.LastAddress.ToString()),
+            new("Broadcast address", subnetResult.BroadcastAddress.ToString()),
+            new("IP class", subnetResult.IPClass),
+        ];
+    }
+
+    private static string ToBinaryMask(IPAddress networkMask)
+    {
+        var bytes = networkMask.GetAddressBytes();
+        return $"{ToBinary(bytes[0])}.{ToBinary(bytes[1])}.{ToBinary(bytes[2])}.{ToBinary(bytes[3])}";
+    }
+
+    private static string ToBinary(byte value)
+    {
+        return Convert.ToString(value, toBase: 2).PadLeft(8, '0');
+    }
+
+    private static string GetIPv4Class(IPAddress address)
+    {
+        var firstOctet = address.GetAddressBytes()[0];
+        return firstOctet switch
+        {
+            >= 1 and <= 126 => "A",
+            127 => "A (Loopback)",
+            >= 128 and <= 191 => "B",
+            >= 192 and <= 223 => "C",
+            >= 224 and <= 239 => "D",
+            0 => "Reserved",
+            _ => "E",
+        };
+    }
+
+    private static uint IPv4ToUInt32(IPAddress address)
+    {
+        var bytes = address.GetAddressBytes();
+        return ((uint)bytes[0] << 24)
+             | ((uint)bytes[1] << 16)
+             | ((uint)bytes[2] << 8)
+             | bytes[3];
+    }
+
+    private static IPAddress UInt32ToIPv4(uint value)
+    {
+        Span<byte> bytes =
+        [
+            (byte)(value >> 24),
+            (byte)(value >> 16),
+            (byte)(value >> 8),
+            (byte)value,
+        ];
+
+        return new IPAddress(bytes);
+    }
+
+    private readonly record struct SubnetResult(
+        IPNetwork Network,
+        IPAddress NetworkAddress,
+        IPAddress NetworkMask,
+        ulong NetworkSize,
+        ulong UsableHostsCount,
+        IPAddress FirstAddress,
+        IPAddress LastAddress,
+        IPAddress BroadcastAddress,
+        string IPClass);
+}
