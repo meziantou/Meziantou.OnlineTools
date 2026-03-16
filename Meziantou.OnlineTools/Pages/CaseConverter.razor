@@ -1,0 +1,145 @@
+@page "/case-converter"
+
+<h1>Case converter</h1>
+
+<div class="form-group">
+    <label for="value">Value</label>
+    <textarea id="value" class="form-control code" @oninput="OnInputChanged">@Value</textarea>
+</div>
+
+@if (result is not null)
+{
+    <ResultValueList Values="result" />
+}
+
+@code {
+    string? Value;
+    IReadOnlyList<ResultValue>? result;
+
+    protected override void OnInitialized()
+    {
+        Value = string.Empty;
+        Compute();
+    }
+
+    void OnInputChanged(ChangeEventArgs e)
+    {
+        Value = e.Value as string;
+        Compute();
+    }
+
+    void Compute()
+    {
+        var text = Value ?? string.Empty;
+        var words = ExtractWords(text);
+
+        result =
+        [
+            new("lowercase", text.ToLowerInvariant()),
+            new("UPPERCASE", text.ToUpperInvariant()),
+            new("Title Case", string.Join(' ', words.Select(ToCapitalizedWord))),
+            new("camelCase", ToCamelCase(words)),
+            new("kebab-case", string.Join('-', words.Select(static word => word.ToLowerInvariant()))),
+            new("snake_case", string.Join('_', words.Select(static word => word.ToLowerInvariant()))),
+            new("PascalCase", string.Concat(words.Select(ToCapitalizedWord))),
+            new("CONSTANT_CASE", string.Join('_', words.Select(static word => word.ToUpperInvariant()))),
+            new("Train-Case", string.Join('-', words.Select(ToCapitalizedWord))),
+            new("dot.case", string.Join('.', words.Select(static word => word.ToLowerInvariant()))),
+            new("Sentence case", ToSentenceCase(words)),
+        ];
+    }
+
+    static string ToCamelCase(IReadOnlyList<string> words)
+    {
+        if (words.Count == 0)
+            return string.Empty;
+
+        return string.Concat(words.Select((word, index) => index == 0 ? word.ToLowerInvariant() : ToCapitalizedWord(word)));
+    }
+
+    static string ToSentenceCase(IReadOnlyList<string> words)
+    {
+        if (words.Count == 0)
+            return string.Empty;
+
+        return string.Concat(words.Select((word, index) => index == 0 ? ToCapitalizedWord(word) : " " + word.ToLowerInvariant()));
+    }
+
+    static string ToCapitalizedWord(string word)
+    {
+        if (word.Length == 0)
+            return word;
+
+        var normalizedWord = word.ToLowerInvariant();
+        for (var i = 0; i < normalizedWord.Length; i++)
+        {
+            if (char.IsLetter(normalizedWord[i]))
+            {
+                return normalizedWord[..i] + char.ToUpperInvariant(normalizedWord[i]) + normalizedWord[(i + 1)..];
+            }
+        }
+
+        return normalizedWord;
+    }
+
+    static List<string> ExtractWords(string value)
+    {
+        var result = new List<string>();
+        var currentWord = new System.Text.StringBuilder();
+
+        for (var i = 0; i < value.Length; i++)
+        {
+            var current = value[i];
+            if (!char.IsLetterOrDigit(current))
+            {
+                AddCurrentWord(result, currentWord);
+                continue;
+            }
+
+            if (currentWord.Length == 0)
+            {
+                currentWord.Append(current);
+                continue;
+            }
+
+            var previous = currentWord[^1];
+            var next = i + 1 < value.Length ? value[i + 1] : '\0';
+
+            if (IsBoundary(previous, current, next))
+            {
+                AddCurrentWord(result, currentWord);
+            }
+
+            currentWord.Append(current);
+        }
+
+        AddCurrentWord(result, currentWord);
+        return result;
+    }
+
+    static bool IsBoundary(char previous, char current, char next)
+    {
+        if (char.IsDigit(previous) != char.IsDigit(current))
+            return true;
+
+        if (!char.IsLetter(previous) || !char.IsLetter(current))
+            return false;
+
+        if (char.IsLower(previous) && char.IsUpper(current))
+            return true;
+
+        if (char.IsUpper(previous) && char.IsUpper(current) && char.IsLower(next))
+            return true;
+
+        return false;
+    }
+
+    static void AddCurrentWord(List<string> words, System.Text.StringBuilder currentWord)
+    {
+        if (currentWord.Length == 0)
+            return;
+
+        words.Add(currentWord.ToString());
+        currentWord.Clear();
+    }
+}
