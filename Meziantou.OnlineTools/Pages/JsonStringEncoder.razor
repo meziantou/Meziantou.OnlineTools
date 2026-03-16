@@ -11,15 +11,17 @@
 
 @if (result != null)
 {
-    <pre class="result">@result</pre>
+    <ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
 }
 
 @code {
     string? text = "";
     string? result;
+    string? resultLabel;
 
     void Encode()
     {
+        resultLabel = "JSON string";
         try
         {
             result = System.Text.Json.JsonSerializer.Serialize(text);
@@ -32,6 +34,7 @@
 
     void Decode()
     {
+        resultLabel = "Decoded text";
         try
         {
             result = System.Text.Json.JsonSerializer.Deserialize<object>(text ?? "")?.ToString();

@@ -13,15 +13,17 @@
 
 @if (result != null)
 {
-    <pre class="result">@result</pre>
+    <ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
 }
 
 @code {
     string? text;
     string? result;
+    string? resultLabel;
 
     void Encode()
     {
+        resultLabel = "Escaped argument";
         try
         {
             result = Meziantou.Framework.CommandLineBuilder.WindowsQuotedArgument(text ?? "");
@@ -34,6 +36,7 @@
 
     void EncodeCmd()
     {
+        resultLabel = "Escaped cmd argument";
         try
         {
             result = Meziantou.Framework.CommandLineBuilder.WindowsCmdArgument(text ?? "");

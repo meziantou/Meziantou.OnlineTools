@@ -10,10 +10,7 @@
 
 @if (result != null)
 {
-    <pre class="result">Decimal: @SplitGroup(result.Value.ToString(), 3)</pre>
-    <pre class="result">   Hexa: @SplitGroup(result.Value.ToString("X"), 4)</pre>
-    <pre class="result">  Octal: @SplitGroup(Convert.ToString(result.Value, toBase: 8), 3)</pre>
-    <pre class="result"> Binary: @SplitGroup(Convert.ToString(result.Value, toBase: 2), 4)</pre>
+    <ResultValueList Values="GetResultValues(result.Value)" />
 }
 
 @code {
@@ -69,5 +66,16 @@
         }
 
         return newString;
+    }
+
+    IReadOnlyList<ResultValue> GetResultValues(long value)
+    {
+        return
+        [
+            new("Decimal (10)", SplitGroup(value.ToString(), 3)),
+            new("Hexadecimal (16)", SplitGroup(value.ToString("X"), 4)),
+            new("Octal (8)", SplitGroup(Convert.ToString(value, toBase: 8), 3)),
+            new("Binary (2)", SplitGroup(Convert.ToString(value, toBase: 2), 4)),
+        ];
     }
 }

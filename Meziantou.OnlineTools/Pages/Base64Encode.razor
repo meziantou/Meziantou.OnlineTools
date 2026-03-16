@@ -25,13 +25,14 @@
 
 @if (result != null)
 {
-    <pre class="result">@result</pre>
+    <ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
 }
 
 @code {
     string? text;
     string? encoding;
     string? result;
+    string? resultLabel;
 
     private async Task OnInputFileChange(InputFileChangeEventArgs e)
     {
@@ -39,11 +40,13 @@
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
 
+        resultLabel = "Base64";
         result = Convert.ToBase64String(ms.ToArray());
     }
 
     void Encode()
     {
+        resultLabel = "Base64";
         try
         {
             result = Convert.ToBase64String(GetEncoding().GetBytes(text ?? ""));
@@ -56,6 +59,7 @@
 
     void Decode()
     {
+        resultLabel = "Decoded text";
         try
         {
             result = GetEncoding().GetString(Convert.FromBase64String(text ?? ""));

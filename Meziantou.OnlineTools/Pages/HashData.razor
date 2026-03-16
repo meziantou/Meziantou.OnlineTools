@@ -30,14 +30,9 @@
     <button class="btn btn-secondary" @onclick="Hash">Hash</button>
 </div>
 
-@if (resultBase64 != null)
+@if (resultBase64 != null || resultHexa != null)
 {
-    <pre class="result">@resultBase64</pre>
-}
-
-@if (resultHexa != null)
-{
-    <pre class="result">@resultHexa</pre>
+    <ResultValueList Values="GetResults()" />
 }
 
 @code {
@@ -79,7 +74,24 @@
         catch (Exception ex)
         {
             resultBase64 = ex.Message;
+            resultHexa = null;
         }
+    }
+
+    IReadOnlyList<ResultValue> GetResults()
+    {
+        var result = new List<ResultValue>();
+        if (resultBase64 != null)
+        {
+            result.Add(new ResultValue("Base64", resultBase64));
+        }
+
+        if (resultHexa != null)
+        {
+            result.Add(new ResultValue("Hexadecimal", resultHexa));
+        }
+
+        return result;
     }
 
     Encoding GetEncoding()

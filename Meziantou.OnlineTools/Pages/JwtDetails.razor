@@ -68,16 +68,16 @@
     </table>
 
     <h3>Encoded token parts</h3>
-    <pre class="result">@GetEncodedPartsSummary(details)</pre>
+    <ResultValueList Values="GetEncodedPartsValues(details)" />
 
     <h3>Header (decoded JSON)</h3>
-    <pre class="result">@details.HeaderJson</pre>
+    <ResultValueSingle CopyLabel="Header JSON" Value="@details.HeaderJson" />
 
     <h3>Payload (decoded JSON)</h3>
-    <pre class="result">@details.PayloadJson</pre>
+    <ResultValueSingle CopyLabel="Payload JSON" Value="@details.PayloadJson" />
 
     <h3>Signature</h3>
-    <pre class="result">@GetSignatureSummary(details)</pre>
+    <ResultValueList Values="GetSignatureValues(details)" />
 }
 
 @code {
@@ -305,25 +305,24 @@
         }
     }
 
-    private static string GetEncodedPartsSummary(JwtTokenDetails details)
+    private static IReadOnlyList<ResultValue> GetEncodedPartsValues(JwtTokenDetails details)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine($"Header (Base64Url): {details.HeaderBase64Url}");
-        sb.AppendLine($"Payload (Base64Url): {details.PayloadBase64Url}");
-        sb.AppendLine($"Signature (Base64Url): {details.SignatureBase64Url}");
-        return sb.ToString();
+        return
+        [
+            new("Header (Base64Url)", details.HeaderBase64Url),
+            new("Payload (Base64Url)", details.PayloadBase64Url),
+            new("Signature (Base64Url)", details.SignatureBase64Url),
+        ];
     }
 
-    private static string GetSignatureSummary(JwtTokenDetails details)
+    private static IReadOnlyList<ResultValue> GetSignatureValues(JwtTokenDetails details)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine($"Base64Url: {details.SignatureBase64Url}");
-        sb.AppendLine($"Length: {details.SignatureLength} byte(s)");
-        sb.AppendLine();
-        sb.AppendLine("Hex:");
-        sb.Append(details.SignatureHex);
-
-        return sb.ToString();
+        return
+        [
+            new("Base64Url", details.SignatureBase64Url),
+            new("Length", $"{details.SignatureLength} byte(s)"),
+            new("Hex", details.SignatureHex),
+        ];
     }
 
     private sealed class JwtTokenDetails

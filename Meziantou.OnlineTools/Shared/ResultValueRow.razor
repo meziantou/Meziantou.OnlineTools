@@ -1,0 +1,15 @@
+<div class="result-list-row">
+    <div class="result-list-label">@Label</div>
+    <div class="result-list-value-container">
+        <div class="result-list-value code">@Value</div>
+        <CopyToClipboardButton Value="@Value" Label="@Label" CssClass="result-list-copy" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = string.Empty;
+}

@@ -14,20 +14,23 @@
 
 @if (result != null)
 {
-    <pre class="result">@result</pre>
+    <ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
 }
 
 @code {
     string? text;
     string? result;
+    string? resultLabel;
 
     void EncodeElement()
     {
+        resultLabel = "Encoded element";
         result = new XElement("a", text ?? "").LastNode?.ToString();
     }
 
     void DecodeElement()
     {
+        resultLabel = "Decoded element";
         try
         {
             var element = XElement.Parse("<a>" + text + "</a>");
@@ -41,11 +44,13 @@
 
     void EncodeAttribute()
     {
+        resultLabel = "Encoded attribute";
         result = new XAttribute("a", text ?? "").ToString()[3..^1];
     }
 
     void DecodeAttribute()
     {
+        resultLabel = "Decoded attribute";
         try
         {
             var element = XElement.Parse("<a a=\"" + text + "\"></a>");

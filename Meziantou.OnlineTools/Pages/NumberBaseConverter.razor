@@ -35,12 +35,7 @@
 else if (result != null)
 {
     var conversionResult = result.Value;
-    <pre class="result">Detected input base: @conversionResult.InputBase
-Binary  (base 2): 0b@GroupDigits(ToBaseString(conversionResult.Value, 2), 4)
-Octal   (base 8): 0o@GroupDigits(ToBaseString(conversionResult.Value, 8), 3)
-Decimal (base10): @GroupDigits(ToBaseString(conversionResult.Value, 10), 3)
-Hex     (base16): 0x@GroupDigits(ToBaseString(conversionResult.Value, 16), 4)
-Custom  (base @conversionResult.CustomBase): @GroupDigits(ToBaseString(conversionResult.Value, conversionResult.CustomBase), GetGroupSize(conversionResult.CustomBase))</pre>
+    <ResultValueList Values="GetResultValues(conversionResult)" />
 }
 
 @code {
@@ -312,6 +307,19 @@ Custom  (base @conversionResult.CustomBase): @GroupDigits(ToBaseString(conversio
         }
 
         return sb.ToString();
+    }
+
+    static IReadOnlyList<ResultValue> GetResultValues(ConversionResult conversionResult)
+    {
+        return
+        [
+            new("Detected input base", conversionResult.InputBase.ToString(CultureInfo.InvariantCulture)),
+            new("Binary (2)", "0b" + GroupDigits(ToBaseString(conversionResult.Value, 2), 4)),
+            new("Octal (8)", "0o" + GroupDigits(ToBaseString(conversionResult.Value, 8), 3)),
+            new("Decimal (10)", GroupDigits(ToBaseString(conversionResult.Value, 10), 3)),
+            new("Hexadecimal (16)", "0x" + GroupDigits(ToBaseString(conversionResult.Value, 16), 4)),
+            new($"Custom ({conversionResult.CustomBase})", GroupDigits(ToBaseString(conversionResult.Value, conversionResult.CustomBase), GetGroupSize(conversionResult.CustomBase))),
+        ];
     }
 
     readonly record struct ConversionResult(BigInteger Value, int InputBase, int CustomBase);

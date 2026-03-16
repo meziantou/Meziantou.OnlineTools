@@ -13,7 +13,7 @@
 
 @if (result != null)
 {
-    <pre class="result">@result</pre>
+    <ResultValueList Values="result" />
     <table class="table">
         <thead>
             <tr>
@@ -41,7 +41,7 @@
     [Parameter, SupplyParameterFromQuery]
     public string? Text { get; set; }
 
-    string? result;
+    IReadOnlyList<ResultValue>? result;
 
     protected override void OnParametersSet()
     {
@@ -61,13 +61,12 @@
 
         var info = new System.Globalization.StringInfo(Text);
 
-        var sb = new System.Text.StringBuilder();
-
-        sb.AppendLine("Length:   " + Text.Length);
-        sb.AppendLine("Runes:    " + Text.EnumerateRunes().Count());
-        sb.AppendLine("Graphems: " + info.LengthInTextElements);
-
-        result = sb.ToString();
+        result =
+        [
+            new("Length", Text.Length.ToString()),
+            new("Runes", Text.EnumerateRunes().Count().ToString()),
+            new("Graphemes", info.LengthInTextElements.ToString()),
+        ];
     }
 
     string GetUtf16(System.Text.Rune rune)

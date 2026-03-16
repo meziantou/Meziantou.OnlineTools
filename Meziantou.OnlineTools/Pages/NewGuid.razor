@@ -9,11 +9,11 @@
 
 @if (result != null)
 {
-	<pre class="result">@result</pre>
+	<ResultValueList Values="result" />
 }
 
 @code {
-    string? result;
+    IReadOnlyList<ResultValue>? result;
 
     protected override void OnInitialized()
     {
@@ -25,7 +25,13 @@
     {
         // https://docs.microsoft.com/en-us/dotnet/api/system.guid.tostring?view=netcore-3.1#System_Guid_ToString_System_String_
         var guid = Guid.NewGuid();
-        var formats = new[] { "N", "D", "B", "P", "X" };
-        result = string.Join("\n", formats.Select(f => guid.ToString(f)));
+        result =
+        [
+            new("N", guid.ToString("N")),
+            new("D", guid.ToString("D")),
+            new("B", guid.ToString("B")),
+            new("P", guid.ToString("P")),
+            new("X", guid.ToString("X")),
+        ];
     }
 }

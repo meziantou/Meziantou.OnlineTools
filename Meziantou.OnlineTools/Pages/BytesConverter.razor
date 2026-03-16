@@ -11,35 +11,35 @@
 
 @if (result != null)
 {
-    <pre class="result">@result</pre>
+    <ResultValueList Values="result" />
 }
 
 @code {
     string? text = "1kiB";
-    string? result;
+    IReadOnlyList<ResultValue>? result;
 
     void Compute()
     {
         try
         {
             var size = ByteSize.Parse(text ?? "", System.Globalization.CultureInfo.InvariantCulture);
-            var sb = new System.Text.StringBuilder();
+
+            var values = new List<ResultValue>();
             foreach (var unit in new[] { "B", "kB", "MB", "GB", "TB", "PB" })
             {
-                sb.AppendLine(size.ToString(unit, System.Globalization.CultureInfo.InvariantCulture).PadLeft(30));
+                values.Add(new ResultValue($"Decimal ({unit})", size.ToString(unit, System.Globalization.CultureInfo.InvariantCulture)));
             }
 
-            sb.AppendLine();
             foreach (var unit in new[] { "B", "kiB", "MiB", "GiB", "TiB", "PiB" })
             {
-                sb.AppendLine(size.ToString(unit, System.Globalization.CultureInfo.InvariantCulture).PadLeft(30));
+                values.Add(new ResultValue($"Binary ({unit})", size.ToString(unit, System.Globalization.CultureInfo.InvariantCulture)));
             }
 
-            result = sb.ToString();
+            result = values;
         }
         catch (Exception ex)
         {
-            result = ex.Message;
+            result = [new ResultValue("Error", ex.Message)];
         }
     }
 }

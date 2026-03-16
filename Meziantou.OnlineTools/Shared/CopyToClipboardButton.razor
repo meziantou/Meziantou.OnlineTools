@@ -1,0 +1,129 @@
+@implements IDisposable
+@inject ClipboardService ClipboardService
+
+<button type="button"
+        class="@GetCssClass()"
+        title="@GetTitle()"
+        aria-label="@GetAriaLabel()"
+        @onclick="CopyAsync">
+    @if (_feedbackState == CopyFeedbackState.Success)
+    {
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M13.485 1.929a.75.75 0 0 1 .086 1.056l-7.5 8.75a.75.75 0 0 1-1.088.045l-2.5-2.5a.75.75 0 1 1 1.06-1.06l1.928 1.928 6.973-8.135a.75.75 0 0 1 1.041-.084z" />
+        </svg>
+    }
+    else if (_feedbackState == CopyFeedbackState.Error)
+    {
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M3.22 3.22a.75.75 0 0 1 1.06 0L8 6.94l3.72-3.72a.75.75 0 1 1 1.06 1.06L9.06 8l3.72 3.72a.75.75 0 0 1-1.06 1.06L8 9.06l-3.72 3.72a.75.75 0 0 1-1.06-1.06L6.94 8 3.22 4.28a.75.75 0 0 1 0-1.06z" />
+        </svg>
+    }
+    else
+    {
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M4 1.75A1.75 1.75 0 0 1 5.75 0h6.5A1.75 1.75 0 0 1 14 1.75v8.5A1.75 1.75 0 0 1 12.25 12h-6.5A1.75 1.75 0 0 1 4 10.25zM5.75 1.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25z" />
+            <path d="M1.75 4A1.75 1.75 0 0 0 0 5.75v8.5C0 15.216.784 16 1.75 16h6.5A1.75 1.75 0 0 0 10 14.25V13H8.5v1.25a.25.25 0 0 1-.25.25h-6.5a.25.25 0 0 1-.25-.25v-8.5a.25.25 0 0 1 .25-.25H3V4z" />
+        </svg>
+    }
+</button>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Label { get; set; } = "value";
+
+    [Parameter]
+    public string CssClass { get; set; } = "result-list-copy";
+
+    [Parameter]
+    public int FeedbackDurationMilliseconds { get; set; } = 1500;
+
+    CopyFeedbackState _feedbackState;
+    CancellationTokenSource? _feedbackCancellationTokenSource;
+
+    async Task CopyAsync()
+    {
+        try
+        {
+            await ClipboardService.WriteTextAsync(Value);
+            SetFeedback(CopyFeedbackState.Success);
+        }
+        catch
+        {
+            SetFeedback(CopyFeedbackState.Error);
+        }
+    }
+
+    void SetFeedback(CopyFeedbackState feedbackState)
+    {
+        _feedbackState = feedbackState;
+
+        _feedbackCancellationTokenSource?.Cancel();
+        _feedbackCancellationTokenSource?.Dispose();
+        _feedbackCancellationTokenSource = new CancellationTokenSource();
+
+        _ = ClearFeedbackAsync(_feedbackCancellationTokenSource.Token);
+    }
+
+    async Task ClearFeedbackAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(FeedbackDurationMilliseconds, cancellationToken);
+
+            _feedbackState = CopyFeedbackState.None;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    string GetCssClass()
+    {
+        if (_feedbackState == CopyFeedbackState.Success)
+            return CssClass + " is-copied";
+
+        if (_feedbackState == CopyFeedbackState.Error)
+            return CssClass + " is-error";
+
+        return CssClass;
+    }
+
+    string GetTitle()
+    {
+        if (_feedbackState == CopyFeedbackState.Success)
+            return "Copied";
+
+        if (_feedbackState == CopyFeedbackState.Error)
+            return "Cannot copy";
+
+        return "Copy";
+    }
+
+    string GetAriaLabel()
+    {
+        if (_feedbackState == CopyFeedbackState.Success)
+            return $"Copied {Label}";
+
+        if (_feedbackState == CopyFeedbackState.Error)
+            return $"Cannot copy {Label}";
+
+        return $"Copy {Label}";
+    }
+
+    public void Dispose()
+    {
+        _feedbackCancellationTokenSource?.Cancel();
+        _feedbackCancellationTokenSource?.Dispose();
+    }
+
+    enum CopyFeedbackState
+    {
+        None,
+        Success,
+        Error,
+    }
+}

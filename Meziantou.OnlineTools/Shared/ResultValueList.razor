@@ -1,0 +1,15 @@
+@if (Values != null && Values.Count > 0)
+{
+    <div class="result-list">
+        @for (var index = 0; index < Values.Count; index++)
+        {
+            var item = Values[index];
+            <ResultValueRow Label="@item.Label" Value="@item.Value" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ResultValue>? Values { get; set; }
+}

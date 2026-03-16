@@ -14,15 +14,17 @@
 
 @if (result != null)
 {
-	<pre class="result">@result</pre>
+    <ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
 }
 
 @code {
     string? text;
     string? result;
+    string? resultLabel;
 
     void Format(bool indented)
     {
+        resultLabel = indented ? "Formatted XML" : "Minified XML";
         try
         {
             var originalXmlDocument = new XmlDocument();

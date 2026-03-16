@@ -12,20 +12,23 @@
 
 @if (result != null)
 {
-	<pre class="result">@result</pre>
+    <ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
 }
 
 @code {
     string? text;
     string? result;
+    string? resultLabel;
 
     void Encode()
     {
+        resultLabel = "Encoded URL";
         result = Uri.EscapeDataString(text ?? "");
     }
 
     void Decode()
     {
+        resultLabel = "Decoded URL";
         result = Uri.UnescapeDataString(text ?? "");
     }
 }

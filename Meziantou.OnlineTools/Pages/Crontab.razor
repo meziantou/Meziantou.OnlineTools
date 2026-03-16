@@ -1,5 +1,6 @@
 @page "/crontab"
 @using Meziantou.Framework.Scheduling
+@using System.Globalization
 
 <h1>Crontab</h1>
 <p><a href="https://github.com/meziantou/Meziantou.Framework/blob/main/src/Meziantou.Framework.Scheduling/readme.md">Crontab documentation</a></p>
@@ -15,12 +16,12 @@
 
 @if (result != null)
 {
-<pre class="result">@result</pre>
+    <ResultValueList Values="result" />
 }
 
 @code {
     string? text = "* * * * *";
-    string? result;
+    IReadOnlyList<ResultValue>? result;
 
     void Compute()
     {
@@ -28,12 +29,16 @@
         {
             var schedule = CronExpression.Parse(text ?? "");
 #pragma warning disable RS0030 // Do not use banned APIs
-            result = string.Join('\n', schedule.GetNextOccurrences(DateTime.Now).Take(50));
+            result = schedule
+                .GetNextOccurrences(DateTime.Now)
+                .Take(50)
+                .Select((value, index) => new ResultValue($"Occurrence {index + 1}", value.ToString("o", CultureInfo.InvariantCulture)))
+                .ToArray();
 #pragma warning restore RS0030
         }
         catch (Exception ex)
         {
-            result = ex.Message;
+            result = [new ResultValue("Error", ex.Message)];
         }
     }
 }

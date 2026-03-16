@@ -12,15 +12,17 @@
 
 @if (result != null)
 {
-<pre class="result">@result</pre>
+<ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
 }
 
 @code {
     string? text;
     string? result;
+    string? resultLabel;
 
     void Format(bool indented)
     {
+        resultLabel = indented ? "Formatted JSON" : "Minified JSON";
         try
         {
             var doc = JsonDocument.Parse(text ?? "", new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip, MaxDepth = 1000 });
