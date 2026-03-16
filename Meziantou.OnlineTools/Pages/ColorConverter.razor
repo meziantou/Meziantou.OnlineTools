@@ -1,0 +1,729 @@
+@page "/color-converter"
+@using System.Globalization
+@using System.Text.RegularExpressions
+@using Meziantou.Framework
+@inject NavigationManager NavigationManager
+
+<h1>Color converter</h1>
+
+<p>Convert color between hex, rgb, hsl, hwb, oklab, lch and cmyk. Every field is interactive.</p>
+
+<div class="color-converter">
+    <div class="color-row">
+        <label for="colorPicker">color picker:</label>
+        <input id="colorPicker" type="color" class="form-control color-picker-input" @oninput="OnColorPickerChanged" value="@ColorPickerText" />
+    </div>
+
+    <div class="color-row">
+        <label for="hex">hex:</label>
+        <input id="hex" class="form-control code" @oninput="OnHexChanged" value="@HexText" spellcheck="false" />
+    </div>
+
+    <div class="color-row">
+        <label for="rgb">rgb:</label>
+        <input id="rgb" class="form-control code" @oninput="OnRgbChanged" value="@RgbText" spellcheck="false" />
+    </div>
+
+    <div class="color-row">
+        <label for="hsl">hsl:</label>
+        <input id="hsl" class="form-control code" @oninput="OnHslChanged" value="@HslText" spellcheck="false" />
+    </div>
+
+    <div class="color-row">
+        <label for="hwb">hwb:</label>
+        <input id="hwb" class="form-control code" @oninput="OnHwbChanged" value="@HwbText" spellcheck="false" />
+    </div>
+
+    <div class="color-row">
+        <label for="lch">lch:</label>
+        <input id="lch" class="form-control code" @oninput="OnLchChanged" value="@LchText" spellcheck="false" />
+    </div>
+
+    <div class="color-row">
+        <label for="oklab">oklab:</label>
+        <input id="oklab" class="form-control code" @oninput="OnOklabChanged" value="@OklabText" spellcheck="false" />
+    </div>
+
+    <div class="color-row">
+        <label for="cmyk">cmyk:</label>
+        <input id="cmyk" class="form-control code" @oninput="OnCmykChanged" value="@CmykText" spellcheck="false" />
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger color-error">@errorMessage</div>
+    }
+</div>
+
+@code {
+    private const string DefaultColor = "#1ea54c";
+
+    private static readonly Regex NumberRegex = new(@"[-+]?(?:\d+\.?\d*|\.\d+)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    [Parameter, SupplyParameterFromQuery(Name = "value")]
+    public string? Value { get; set; }
+
+    private bool initialized;
+    private string? errorMessage;
+
+    private RgbColor currentColor;
+
+    private string ColorPickerText { get; set; } = DefaultColor;
+    private string HexText { get; set; } = DefaultColor;
+    private string RgbText { get; set; } = string.Empty;
+    private string HslText { get; set; } = string.Empty;
+    private string HwbText { get; set; } = string.Empty;
+    private string LchText { get; set; } = string.Empty;
+    private string OklabText { get; set; } = string.Empty;
+    private string CmykText { get; set; } = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (!initialized)
+        {
+            initialized = true;
+
+            var initialValue = string.IsNullOrWhiteSpace(Value) ? DefaultColor : Value.Trim();
+            if (!TryParseAnyColor(initialValue, out var parsedColor))
+            {
+                parsedColor = new RgbColor(30, 165, 76);
+                errorMessage = "Unable to parse the color from the URL query parameter.";
+            }
+
+            SetColor(parsedColor, updateUrl: string.IsNullOrWhiteSpace(Value));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Value))
+            return;
+
+        if (TryParseAnyColor(Value.Trim(), out var colorFromQuery) && colorFromQuery != currentColor)
+        {
+            SetColor(colorFromQuery, updateUrl: false);
+        }
+    }
+
+    private void OnColorPickerChanged(ChangeEventArgs e)
+    {
+        ColorPickerText = e.Value?.ToString() ?? string.Empty;
+        TryApply(ColorPickerText, TryParseHex, "Invalid color picker value.");
+    }
+
+    private void OnHexChanged(ChangeEventArgs e)
+    {
+        HexText = e.Value?.ToString() ?? string.Empty;
+        TryApply(HexText, TryParseHex, "Invalid hex color. Expected #RRGGBB or #RGB.");
+    }
+
+    private void OnRgbChanged(ChangeEventArgs e)
+    {
+        RgbText = e.Value?.ToString() ?? string.Empty;
+        TryApply(RgbText, TryParseRgb, "Invalid rgb value. Expected rgb(r, g, b).");
+    }
+
+    private void OnHslChanged(ChangeEventArgs e)
+    {
+        HslText = e.Value?.ToString() ?? string.Empty;
+        TryApply(HslText, TryParseHsl, "Invalid hsl value. Expected hsl(h, s%, l%).");
+    }
+
+    private void OnHwbChanged(ChangeEventArgs e)
+    {
+        HwbText = e.Value?.ToString() ?? string.Empty;
+        TryApply(HwbText, TryParseHwb, "Invalid hwb value. Expected hwb(h w% b%).");
+    }
+
+    private void OnLchChanged(ChangeEventArgs e)
+    {
+        LchText = e.Value?.ToString() ?? string.Empty;
+        TryApply(LchText, TryParseLch, "Invalid lch value. Expected lch(l% c h).");
+    }
+
+    private void OnOklabChanged(ChangeEventArgs e)
+    {
+        OklabText = e.Value?.ToString() ?? string.Empty;
+        TryApply(OklabText, TryParseOklab, "Invalid oklab value. Expected oklab(l% a b).");
+    }
+
+    private void OnCmykChanged(ChangeEventArgs e)
+    {
+        CmykText = e.Value?.ToString() ?? string.Empty;
+        TryApply(CmykText, TryParseCmyk, "Invalid cmyk value. Expected device-cmyk(c% m% y% k%).");
+    }
+
+    private void TryApply(string input, TryParseColor parser, string error)
+    {
+        if (parser(input, out var parsedColor))
+        {
+            SetColor(parsedColor, updateUrl: true);
+            return;
+        }
+
+        errorMessage = error;
+    }
+
+    private void SetColor(RgbColor color, bool updateUrl)
+    {
+        currentColor = color;
+        errorMessage = null;
+
+        SyncFieldsFromColor();
+
+        if (updateUrl)
+        {
+            Value = HexText;
+            NavigationManager.UpdateUrlUsingParameters(this, replaceHistory: true);
+        }
+    }
+
+    private void SyncFieldsFromColor()
+    {
+        var (h, s, l) = RgbToHsl(currentColor);
+        var (_, w, b) = RgbToHwb(currentColor);
+        var (lchL, lchC, lchH) = RgbToLch(currentColor);
+        var (oklabL, oklabA, oklabB) = RgbToOklab(currentColor);
+        var (c, m, y, k) = RgbToCmyk(currentColor);
+
+        ColorPickerText = FormatHex(currentColor);
+        HexText = FormatHex(currentColor);
+        RgbText = $"rgb({currentColor.R}, {currentColor.G}, {currentColor.B})";
+        HslText = $"hsl({RoundToInt(h)}, {RoundToInt(s)}%, {RoundToInt(l)}%)";
+        HwbText = $"hwb({RoundToInt(h)} {RoundToInt(w)}% {RoundToInt(b)}%)";
+        LchText = $"lch({FormatNumber(lchL)}% {FormatNumber(lchC)} {FormatNumber(lchH)})";
+        OklabText = $"oklab({FormatNumber(oklabL * 100)}% {FormatNumber(oklabA)} {FormatNumber(oklabB)})";
+        CmykText = $"device-cmyk({RoundToInt(c)}% {RoundToInt(m)}% {RoundToInt(y)}% {RoundToInt(k)}%)";
+    }
+
+    private static bool TryParseAnyColor(string text, out RgbColor color)
+    {
+        text = text.Trim();
+        if (text.Length == 0)
+        {
+            color = default;
+            return false;
+        }
+
+        if (text.StartsWith('#') || IsHexWithoutHash(text))
+            return TryParseHex(text, out color);
+
+        if (text.StartsWith("rgb", StringComparison.OrdinalIgnoreCase))
+            return TryParseRgb(text, out color);
+
+        if (text.StartsWith("hsl", StringComparison.OrdinalIgnoreCase))
+            return TryParseHsl(text, out color);
+
+        if (text.StartsWith("hwb", StringComparison.OrdinalIgnoreCase))
+            return TryParseHwb(text, out color);
+
+        if (text.StartsWith("oklab", StringComparison.OrdinalIgnoreCase))
+            return TryParseOklab(text, out color);
+
+        if (text.StartsWith("lch", StringComparison.OrdinalIgnoreCase))
+            return TryParseLch(text, out color);
+
+        if (text.StartsWith("device-cmyk", StringComparison.OrdinalIgnoreCase) || text.StartsWith("cmyk", StringComparison.OrdinalIgnoreCase))
+            return TryParseCmyk(text, out color);
+
+        return TryParseRgb(text, out color);
+    }
+
+    private static bool IsHexWithoutHash(string text)
+    {
+        return text.Length is 3 or 6;
+    }
+
+    private static bool TryParseHex(string text, out RgbColor color)
+    {
+        text = text.Trim();
+        if (text.StartsWith('#'))
+            text = text[1..];
+
+        if (text.Length == 3)
+        {
+            text = string.Create(6, text, static (span, value) =>
+            {
+                span[0] = value[0];
+                span[1] = value[0];
+                span[2] = value[1];
+                span[3] = value[1];
+                span[4] = value[2];
+                span[5] = value[2];
+            });
+        }
+
+        if (text.Length != 6)
+        {
+            color = default;
+            return false;
+        }
+
+        if (!byte.TryParse(text.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var r) ||
+            !byte.TryParse(text.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var g) ||
+            !byte.TryParse(text.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var b))
+        {
+            color = default;
+            return false;
+        }
+
+        color = new RgbColor(r, g, b);
+        return true;
+    }
+
+    private static bool TryParseRgb(string text, out RgbColor color)
+    {
+        if (!TryGetNumberList(text, expectedCount: 3, out var values))
+        {
+            color = default;
+            return false;
+        }
+
+        if (!TryToByte(values[0], out var r) || !TryToByte(values[1], out var g) || !TryToByte(values[2], out var b))
+        {
+            color = default;
+            return false;
+        }
+
+        color = new RgbColor(r, g, b);
+        return true;
+    }
+
+    private static bool TryParseHsl(string text, out RgbColor color)
+    {
+        if (!TryGetNumberList(text, expectedCount: 3, out var values))
+        {
+            color = default;
+            return false;
+        }
+
+        var saturation = values[1];
+        var lightness = values[2];
+        if (saturation is < 0 or > 100 || lightness is < 0 or > 100)
+        {
+            color = default;
+            return false;
+        }
+
+        color = HslToRgb(values[0], saturation, lightness);
+        return true;
+    }
+
+    private static bool TryParseHwb(string text, out RgbColor color)
+    {
+        if (!TryGetNumberList(text, expectedCount: 3, out var values))
+        {
+            color = default;
+            return false;
+        }
+
+        var whiteness = values[1];
+        var blackness = values[2];
+        if (whiteness is < 0 or > 100 || blackness is < 0 or > 100)
+        {
+            color = default;
+            return false;
+        }
+
+        color = HwbToRgb(values[0], whiteness, blackness);
+        return true;
+    }
+
+    private static bool TryParseLch(string text, out RgbColor color)
+    {
+        if (!TryGetNumberList(text, expectedCount: 3, out var values))
+        {
+            color = default;
+            return false;
+        }
+
+        var l = values[0];
+        var c = values[1];
+        if (l is < 0 or > 100 || c < 0)
+        {
+            color = default;
+            return false;
+        }
+
+        color = LchToRgb(l, c, values[2]);
+        return true;
+    }
+
+    private static bool TryParseOklab(string text, out RgbColor color)
+    {
+        if (!TryGetNumberList(text, expectedCount: 3, out var values))
+        {
+            color = default;
+            return false;
+        }
+
+        var lightness = values[0];
+        if (text.Contains('%', StringComparison.Ordinal) || lightness > 1)
+        {
+            lightness /= 100;
+        }
+
+        if (lightness is < 0 or > 1)
+        {
+            color = default;
+            return false;
+        }
+
+        color = OklabToRgb(lightness, values[1], values[2]);
+        return true;
+    }
+
+    private static bool TryParseCmyk(string text, out RgbColor color)
+    {
+        if (!TryGetNumberList(text, expectedCount: 4, out var values))
+        {
+            color = default;
+            return false;
+        }
+
+        if (values[0] is < 0 or > 100 || values[1] is < 0 or > 100 || values[2] is < 0 or > 100 || values[3] is < 0 or > 100)
+        {
+            color = default;
+            return false;
+        }
+
+        color = CmykToRgb(values[0], values[1], values[2], values[3]);
+        return true;
+    }
+
+    private static bool TryGetNumberList(string text, int expectedCount, out double[] values)
+    {
+        var matches = NumberRegex.Matches(text);
+        if (matches.Count < expectedCount)
+        {
+            values = [];
+            return false;
+        }
+
+        values = new double[expectedCount];
+        for (var i = 0; i < expectedCount; i++)
+        {
+            if (!double.TryParse(matches[i].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+                return false;
+
+            values[i] = value;
+        }
+
+        return true;
+    }
+
+    private static string FormatHex(RgbColor color)
+    {
+        return $"#{color.R:x2}{color.G:x2}{color.B:x2}";
+    }
+
+    private static string FormatNumber(double value)
+    {
+        return value.ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private static int RoundToInt(double value)
+    {
+        return (int)Math.Round(value, MidpointRounding.AwayFromZero);
+    }
+
+    private static bool TryToByte(double value, out byte result)
+    {
+        if (value is < 0 or > 255)
+        {
+            result = 0;
+            return false;
+        }
+
+        result = (byte)Math.Round(value, MidpointRounding.AwayFromZero);
+        return true;
+    }
+
+    private static double NormalizeHue(double hue)
+    {
+        hue %= 360;
+        if (hue < 0)
+            hue += 360;
+
+        return hue;
+    }
+
+    private static double Clamp01(double value)
+    {
+        return Math.Clamp(value, 0d, 1d);
+    }
+
+    private static (double H, double S, double L) RgbToHsl(RgbColor color)
+    {
+        var r = color.R / 255d;
+        var g = color.G / 255d;
+        var b = color.B / 255d;
+
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+
+        double hue;
+        if (delta == 0)
+        {
+            hue = 0;
+        }
+        else if (max == r)
+        {
+            hue = 60 * (((g - b) / delta) % 6);
+        }
+        else if (max == g)
+        {
+            hue = 60 * (((b - r) / delta) + 2);
+        }
+        else
+        {
+            hue = 60 * (((r - g) / delta) + 4);
+        }
+
+        var lightness = (max + min) / 2;
+        var saturation = delta == 0 ? 0 : delta / (1 - Math.Abs(2 * lightness - 1));
+
+        return (NormalizeHue(hue), saturation * 100, lightness * 100);
+    }
+
+    private static RgbColor HslToRgb(double hue, double saturationPercent, double lightnessPercent)
+    {
+        var h = NormalizeHue(hue);
+        var s = Clamp01(saturationPercent / 100d);
+        var l = Clamp01(lightnessPercent / 100d);
+
+        var c = (1 - Math.Abs((2 * l) - 1)) * s;
+        var x = 1 - Math.Abs((h / 60d % 2) - 1);
+        var m = l - (c / 2);
+
+        var (r1, g1, b1) = HueToRgbUnit(h, x);
+        return ToRgbColor(r1 * c + m, g1 * c + m, b1 * c + m);
+    }
+
+    private static (double H, double W, double B) RgbToHwb(RgbColor color)
+    {
+        var (h, _, _) = RgbToHsl(color);
+        var r = color.R / 255d;
+        var g = color.G / 255d;
+        var b = color.B / 255d;
+
+        var whiteness = Math.Min(r, Math.Min(g, b)) * 100;
+        var blackness = (1 - Math.Max(r, Math.Max(g, b))) * 100;
+        return (h, whiteness, blackness);
+    }
+
+    private static RgbColor HwbToRgb(double hue, double whitenessPercent, double blacknessPercent)
+    {
+        var h = NormalizeHue(hue);
+        var w = Clamp01(whitenessPercent / 100d);
+        var b = Clamp01(blacknessPercent / 100d);
+
+        if (w + b >= 1)
+        {
+            var gray = w / (w + b);
+            return ToRgbColor(gray, gray, gray);
+        }
+
+        var (r1, g1, b1) = HueToRgbUnit(h, xForHue: 1 - Math.Abs((h / 60d % 2) - 1));
+        var factor = 1 - w - b;
+        return ToRgbColor(
+            (r1 * factor) + w,
+            (g1 * factor) + w,
+            (b1 * factor) + w);
+    }
+
+    private static (double C, double M, double Y, double K) RgbToCmyk(RgbColor color)
+    {
+        var r = color.R / 255d;
+        var g = color.G / 255d;
+        var b = color.B / 255d;
+
+        var k = 1 - Math.Max(r, Math.Max(g, b));
+        if (k >= 1)
+            return (0, 0, 0, 100);
+
+        var c = (1 - r - k) / (1 - k);
+        var m = (1 - g - k) / (1 - k);
+        var y = (1 - b - k) / (1 - k);
+        return (c * 100, m * 100, y * 100, k * 100);
+    }
+
+    private static RgbColor CmykToRgb(double cPercent, double mPercent, double yPercent, double kPercent)
+    {
+        var c = Clamp01(cPercent / 100d);
+        var m = Clamp01(mPercent / 100d);
+        var y = Clamp01(yPercent / 100d);
+        var k = Clamp01(kPercent / 100d);
+
+        return ToRgbColor(
+            (1 - c) * (1 - k),
+            (1 - m) * (1 - k),
+            (1 - y) * (1 - k));
+    }
+
+    private static (double L, double C, double H) RgbToLch(RgbColor color)
+    {
+        var (x, y, z) = RgbToXyz(color);
+        var (l, a, b) = XyzToLab(x, y, z);
+        var c = Math.Sqrt((a * a) + (b * b));
+        var h = NormalizeHue(Math.Atan2(b, a) * (180 / Math.PI));
+        return (l, c, h);
+    }
+
+    private static RgbColor LchToRgb(double l, double c, double h)
+    {
+        var lClamped = Math.Clamp(l, 0, 100);
+        var cClamped = Math.Max(c, 0);
+        var hNormalized = NormalizeHue(h);
+
+        var hRadians = hNormalized * (Math.PI / 180d);
+        var a = cClamped * Math.Cos(hRadians);
+        var b = cClamped * Math.Sin(hRadians);
+
+        var (x, y, z) = LabToXyz(lClamped, a, b);
+        var (r, g, blue) = XyzToRgb(x, y, z);
+        return ToRgbColor(r, g, blue);
+    }
+
+    private static (double L, double A, double B) RgbToOklab(RgbColor color)
+    {
+        var r = SrgbToLinear(color.R / 255d);
+        var g = SrgbToLinear(color.G / 255d);
+        var b = SrgbToLinear(color.B / 255d);
+
+        var l = Math.Cbrt((0.4122214708 * r) + (0.5363325363 * g) + (0.0514459929 * b));
+        var m = Math.Cbrt((0.2119034982 * r) + (0.6806995451 * g) + (0.1073969566 * b));
+        var s = Math.Cbrt((0.0883024619 * r) + (0.2817188376 * g) + (0.6299787005 * b));
+
+        var lightness = (0.2104542553 * l) + (0.7936177850 * m) - (0.0040720468 * s);
+        var a = (1.9779984951 * l) - (2.4285922050 * m) + (0.4505937099 * s);
+        var bValue = (0.0259040371 * l) + (0.7827717662 * m) - (0.8086757660 * s);
+        return (lightness, a, bValue);
+    }
+
+    private static RgbColor OklabToRgb(double lightness, double a, double b)
+    {
+        var l = lightness + (0.3963377774 * a) + (0.2158037573 * b);
+        var m = lightness - (0.1055613458 * a) - (0.0638541728 * b);
+        var s = lightness - (0.0894841775 * a) - (1.2914855480 * b);
+
+        l *= l * l;
+        m *= m * m;
+        s *= s * s;
+
+        var r = (4.0767416621 * l) - (3.3077115913 * m) + (0.2309699292 * s);
+        var g = (-1.2684380046 * l) + (2.6097574011 * m) - (0.3413193965 * s);
+        var blue = (-0.0041960863 * l) - (0.7034186147 * m) + (1.7076147010 * s);
+
+        return ToRgbColor(r, g, blue);
+    }
+
+    private static (double X, double Y, double Z) RgbToXyz(RgbColor color)
+    {
+        var r = SrgbToLinear(color.R / 255d);
+        var g = SrgbToLinear(color.G / 255d);
+        var b = SrgbToLinear(color.B / 255d);
+
+        var x = (0.4124564 * r) + (0.3575761 * g) + (0.1804375 * b);
+        var y = (0.2126729 * r) + (0.7151522 * g) + (0.0721750 * b);
+        var z = (0.0193339 * r) + (0.1191920 * g) + (0.9503041 * b);
+        return (x, y, z);
+    }
+
+    private static (double R, double G, double B) XyzToRgb(double x, double y, double z)
+    {
+        var rLinear = (3.2404542 * x) + (-1.5371385 * y) + (-0.4985314 * z);
+        var gLinear = (-0.9692660 * x) + (1.8760108 * y) + (0.0415560 * z);
+        var bLinear = (0.0556434 * x) + (-0.2040259 * y) + (1.0572252 * z);
+
+        return (LinearToSrgb(rLinear), LinearToSrgb(gLinear), LinearToSrgb(bLinear));
+    }
+
+    private static (double L, double A, double B) XyzToLab(double x, double y, double z)
+    {
+        const double xRef = 0.95047;
+        const double yRef = 1.0;
+        const double zRef = 1.08883;
+
+        var fx = LabF(x / xRef);
+        var fy = LabF(y / yRef);
+        var fz = LabF(z / zRef);
+
+        var l = (116 * fy) - 16;
+        var a = 500 * (fx - fy);
+        var b = 200 * (fy - fz);
+        return (l, a, b);
+    }
+
+    private static (double X, double Y, double Z) LabToXyz(double l, double a, double b)
+    {
+        const double xRef = 0.95047;
+        const double yRef = 1.0;
+        const double zRef = 1.08883;
+
+        var fy = (l + 16) / 116;
+        var fx = fy + (a / 500);
+        var fz = fy - (b / 200);
+
+        var x = xRef * LabInvF(fx);
+        var y = yRef * LabInvF(fy);
+        var z = zRef * LabInvF(fz);
+        return (x, y, z);
+    }
+
+    private static double SrgbToLinear(double value)
+    {
+        return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+    }
+
+    private static double LinearToSrgb(double value)
+    {
+        return value <= 0.0031308 ? 12.92 * value : (1.055 * Math.Pow(value, 1 / 2.4)) - 0.055;
+    }
+
+    private static double LabF(double value)
+    {
+        const double epsilon = 216d / 24389d;
+        const double kappa = 24389d / 27d;
+        return value > epsilon ? Math.Cbrt(value) : ((kappa * value) + 16) / 116;
+    }
+
+    private static double LabInvF(double value)
+    {
+        const double epsilon = 216d / 24389d;
+        const double kappa = 24389d / 27d;
+
+        var value3 = value * value * value;
+        return value3 > epsilon ? value3 : ((116 * value) - 16) / kappa;
+    }
+
+    private static (double R, double G, double B) HueToRgbUnit(double hue, double xForHue)
+    {
+        return hue switch
+        {
+            >= 0 and < 60 => (1, xForHue, 0),
+            >= 60 and < 120 => (xForHue, 1, 0),
+            >= 120 and < 180 => (0, 1, xForHue),
+            >= 180 and < 240 => (0, xForHue, 1),
+            >= 240 and < 300 => (xForHue, 0, 1),
+            _ => (1, 0, xForHue),
+        };
+    }
+
+    private static RgbColor ToRgbColor(double r, double g, double b)
+    {
+        return new RgbColor(
+            ToByte(r),
+            ToByte(g),
+            ToByte(b));
+    }
+
+    private static byte ToByte(double value)
+    {
+        var clamped = Clamp01(value);
+        return (byte)Math.Round(clamped * 255, MidpointRounding.AwayFromZero);
+    }
+
+    private readonly record struct RgbColor(byte R, byte G, byte B);
+
+    private delegate bool TryParseColor(string text, out RgbColor color);
+}

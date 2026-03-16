@@ -1,0 +1,45 @@
+.color-converter {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 52rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.4rem;
+    background: var(--bg-secondary);
+}
+
+.color-row {
+    display: grid;
+    grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.color-row > label {
+    text-align: right;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.color-picker-input {
+    width: 100%;
+    min-height: calc(1.5em + 0.75rem + 2px);
+    padding: 0.15rem;
+}
+
+.color-error {
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .color-row {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+    }
+
+    .color-row > label {
+        text-align: left;
+    }
+}
