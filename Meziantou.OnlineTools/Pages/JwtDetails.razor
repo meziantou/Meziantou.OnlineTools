@@ -1,0 +1,348 @@
+@page "/jwt-details"
+@using System.Globalization
+@using System.Text
+@using System.Text.Json
+
+<h1>JWT Token Details</h1>
+
+<div class="form-group">
+    <label for="jwtToken">JWT token</label>
+    <textarea id="jwtToken" class="form-control code" @bind="token" placeholder="Paste a JWT token (with or without the 'Bearer ' prefix)"></textarea>
+</div>
+
+<div>
+    <button class="btn btn-secondary" @onclick="DecodeToken">Decode token</button>
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (details != null)
+{
+    <h3>Summary</h3>
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Algorithm</th>
+                <td>@Display(details.Algorithm)</td>
+            </tr>
+            <tr>
+                <th>Type</th>
+                <td>@Display(details.TokenType)</td>
+            </tr>
+            <tr>
+                <th>Key Id (kid)</th>
+                <td>@Display(details.KeyId)</td>
+            </tr>
+            <tr>
+                <th>Issuer (iss)</th>
+                <td>@Display(details.Issuer)</td>
+            </tr>
+            <tr>
+                <th>Subject (sub)</th>
+                <td>@Display(details.Subject)</td>
+            </tr>
+            <tr>
+                <th>Audience (aud)</th>
+                <td>@DisplayAudience(details.Audiences)</td>
+            </tr>
+            <tr>
+                <th>Issued at (iat)</th>
+                <td>@FormatUnixTimestamp(details.IssuedAt)</td>
+            </tr>
+            <tr>
+                <th>Not before (nbf)</th>
+                <td>@FormatUnixTimestamp(details.NotBefore)</td>
+            </tr>
+            <tr>
+                <th>Expiration (exp)</th>
+                <td>@FormatUnixTimestamp(details.ExpiresAt)</td>
+            </tr>
+            <tr>
+                <th>Expiration status</th>
+                <td>@GetExpirationStatus(details.ExpiresAt)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Encoded token parts</h3>
+    <pre class="result">@GetEncodedPartsSummary(details)</pre>
+
+    <h3>Header (decoded JSON)</h3>
+    <pre class="result">@details.HeaderJson</pre>
+
+    <h3>Payload (decoded JSON)</h3>
+    <pre class="result">@details.PayloadJson</pre>
+
+    <h3>Signature</h3>
+    <pre class="result">@GetSignatureSummary(details)</pre>
+}
+
+@code {
+    private string? token;
+    private string? errorMessage;
+    private JwtTokenDetails? details;
+
+    private void DecodeToken()
+    {
+        errorMessage = null;
+        details = null;
+
+        var rawToken = (token ?? string.Empty).Trim();
+        if (rawToken.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            rawToken = rawToken[7..].Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(rawToken))
+        {
+            errorMessage = "Please enter a JWT token.";
+            return;
+        }
+
+        var parts = rawToken.Split('.');
+        if (parts.Length != 3)
+        {
+            errorMessage = "Invalid token format. Expected 3 sections separated by dots (header.payload.signature).";
+            return;
+        }
+
+        if (!TryParseJsonPart(parts[0], out var headerDocument, out var headerJson, out var headerError))
+        {
+            errorMessage = $"Invalid JWT header: {headerError}";
+            return;
+        }
+
+        if (!TryParseJsonPart(parts[1], out var payloadDocument, out var payloadJson, out var payloadError))
+        {
+            errorMessage = $"Invalid JWT payload: {payloadError}";
+            return;
+        }
+
+        if (!TryDecodeBase64Url(parts[2], out var signatureBytes, out var signatureError))
+        {
+            errorMessage = $"Invalid JWT signature: {signatureError}";
+            return;
+        }
+
+        using (headerDocument)
+        using (payloadDocument)
+        {
+            details = new JwtTokenDetails
+            {
+                HeaderJson = headerJson,
+                PayloadJson = payloadJson,
+                HeaderBase64Url = parts[0],
+                PayloadBase64Url = parts[1],
+                SignatureBase64Url = parts[2],
+                SignatureHex = Convert.ToHexString(signatureBytes),
+                SignatureLength = signatureBytes.Length,
+                Algorithm = GetStringOrRaw(headerDocument.RootElement, "alg"),
+                TokenType = GetStringOrRaw(headerDocument.RootElement, "typ"),
+                KeyId = GetStringOrRaw(headerDocument.RootElement, "kid"),
+                Issuer = GetStringOrRaw(payloadDocument.RootElement, "iss"),
+                Subject = GetStringOrRaw(payloadDocument.RootElement, "sub"),
+                Audiences = GetAudiences(payloadDocument.RootElement),
+                IssuedAt = GetUnixTimestamp(payloadDocument.RootElement, "iat"),
+                NotBefore = GetUnixTimestamp(payloadDocument.RootElement, "nbf"),
+                ExpiresAt = GetUnixTimestamp(payloadDocument.RootElement, "exp"),
+            };
+        }
+    }
+
+    private static bool TryParseJsonPart(string encodedPart, out JsonDocument document, out string formattedJson, out string? error)
+    {
+        document = null!;
+        formattedJson = string.Empty;
+        error = null;
+
+        if (!TryDecodeBase64Url(encodedPart, out var bytes, out error))
+            return false;
+
+        try
+        {
+            var json = Encoding.UTF8.GetString(bytes);
+            document = JsonDocument.Parse(json);
+            formattedJson = JsonUtils.ToDisplayJson(document.RootElement);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private static bool TryDecodeBase64Url(string text, out byte[] bytes, out string? error)
+    {
+        bytes = Array.Empty<byte>();
+        error = null;
+
+        var base64 = text.Replace('-', '+').Replace('_', '/');
+
+        switch (base64.Length % 4)
+        {
+            case 0:
+                break;
+            case 2:
+                base64 += "==";
+                break;
+            case 3:
+                base64 += "=";
+                break;
+            default:
+                error = "The section has an invalid base64url length.";
+                return false;
+        }
+
+        try
+        {
+            bytes = Convert.FromBase64String(base64);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private static string? GetStringOrRaw(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+            return null;
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.String => property.GetString(),
+            JsonValueKind.Null => null,
+            _ => property.GetRawText(),
+        };
+    }
+
+    private static long? GetUnixTimestamp(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+            return null;
+
+        if (property.ValueKind == JsonValueKind.Number && property.TryGetInt64(out var int64Value))
+            return int64Value;
+
+        if (property.ValueKind == JsonValueKind.String && long.TryParse(property.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedValue))
+            return parsedValue;
+
+        return null;
+    }
+
+    private static IReadOnlyList<string> GetAudiences(JsonElement root)
+    {
+        if (!root.TryGetProperty("aud", out var audience))
+            return Array.Empty<string>();
+
+        if (audience.ValueKind == JsonValueKind.String)
+            return [audience.GetString() ?? string.Empty];
+
+        if (audience.ValueKind == JsonValueKind.Array)
+        {
+            var values = new List<string>();
+            foreach (var item in audience.EnumerateArray())
+            {
+                values.Add(item.ValueKind == JsonValueKind.String ? item.GetString() ?? string.Empty : item.GetRawText());
+            }
+
+            return values;
+        }
+
+        return [audience.GetRawText()];
+    }
+
+    private static string FormatUnixTimestamp(long? unixTimestamp)
+    {
+        if (!unixTimestamp.HasValue)
+            return "(not set)";
+
+        try
+        {
+            var dateTime = DateTimeOffset.FromUnixTimeSeconds(unixTimestamp.Value).UtcDateTime;
+            return $"{unixTimestamp.Value} ({dateTime:yyyy-MM-dd HH:mm:ss} UTC)";
+        }
+        catch
+        {
+            return unixTimestamp.Value.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+
+    private static string Display(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "(not set)" : value;
+    }
+
+    private static string DisplayAudience(IReadOnlyList<string> audiences)
+    {
+        return audiences.Count == 0 ? "(not set)" : string.Join(", ", audiences);
+    }
+
+    private static string GetExpirationStatus(long? expiresAt)
+    {
+        if (!expiresAt.HasValue)
+            return "(not set)";
+
+        try
+        {
+            var expirationTime = DateTimeOffset.FromUnixTimeSeconds(expiresAt.Value);
+            var now = DateTimeOffset.UtcNow;
+            if (expirationTime <= now)
+                return "Expired";
+
+            var remaining = expirationTime - now;
+            return $"Valid for {remaining:g}";
+        }
+        catch
+        {
+            return "Unknown";
+        }
+    }
+
+    private static string GetEncodedPartsSummary(JwtTokenDetails details)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Header (Base64Url): {details.HeaderBase64Url}");
+        sb.AppendLine($"Payload (Base64Url): {details.PayloadBase64Url}");
+        sb.AppendLine($"Signature (Base64Url): {details.SignatureBase64Url}");
+        return sb.ToString();
+    }
+
+    private static string GetSignatureSummary(JwtTokenDetails details)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Base64Url: {details.SignatureBase64Url}");
+        sb.AppendLine($"Length: {details.SignatureLength} byte(s)");
+        sb.AppendLine();
+        sb.AppendLine("Hex:");
+        sb.Append(details.SignatureHex);
+
+        return sb.ToString();
+    }
+
+    private sealed class JwtTokenDetails
+    {
+        public required string HeaderJson { get; init; }
+        public required string PayloadJson { get; init; }
+        public required string HeaderBase64Url { get; init; }
+        public required string PayloadBase64Url { get; init; }
+        public required string SignatureBase64Url { get; init; }
+        public required string SignatureHex { get; init; }
+        public required int SignatureLength { get; init; }
+        public string? Algorithm { get; init; }
+        public string? TokenType { get; init; }
+        public string? KeyId { get; init; }
+        public string? Issuer { get; init; }
+        public string? Subject { get; init; }
+        public required IReadOnlyList<string> Audiences { get; init; }
+        public long? IssuedAt { get; init; }
+        public long? NotBefore { get; init; }
+        public long? ExpiresAt { get; init; }
+    }
+}

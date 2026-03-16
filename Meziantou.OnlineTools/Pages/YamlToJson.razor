@@ -24,12 +24,6 @@
 			""";
 		string? result;
 
-    JsonSerializerOptions indentedSerializerOptions = new JsonSerializerOptions
-    {
-        WriteIndented = true,
-        Converters = { new DictionaryObjectConverter() },
-    };
-
     void ToJson()
     {
         try
@@ -38,39 +32,11 @@
             using var sr = new System.IO.StringReader(text ?? "");
             var yamlObject = deserializer.Deserialize(sr);
 
-            result = System.Text.Json.JsonSerializer.Serialize(yamlObject, indentedSerializerOptions);
+            result = JsonUtils.ToDisplayJson(yamlObject);
         }
         catch (Exception ex)
         {
             result = ex.Message;
-        }
-    }
-
-    class DictionaryObjectConverter : System.Text.Json.Serialization.JsonConverter<Dictionary<object, object>>
-    {
-        public override Dictionary<object, object> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void Write(Utf8JsonWriter writer, Dictionary<object, object> value, JsonSerializerOptions options)
-        {
-            if (value == null)
-            {
-                writer.WriteNullValue();
-            }
-            else
-            {
-                writer.WriteStartObject();
-                foreach (var kvp in value)
-                {
-                    var propertyName = $"{kvp.Key}";
-                    writer.WritePropertyName(propertyName);
-                    JsonSerializer.Serialize(writer, kvp.Value, options);
-                }
-
-                writer.WriteEndObject();
-            }
         }
     }
 }

@@ -61,7 +61,7 @@
             var rawJson = await Http.GetStringAsync(url);
 
             using var doc = JsonDocument.Parse(rawJson);
-            jsonResponse = JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
+            jsonResponse = JsonUtils.ToDisplayJson(doc.RootElement);
 
             // Try to extract from token_endpoint
             if (doc.RootElement.TryGetProperty("token_endpoint", out var tokenEndpoint))
