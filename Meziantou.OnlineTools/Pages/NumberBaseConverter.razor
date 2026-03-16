@@ -1,0 +1,318 @@
+@page "/number-base-converter"
+@using System.Globalization
+@using System.Numerics
+@using System.Text
+@using Meziantou.Framework
+@inject NavigationManager NavigationManager
+
+<h1>Number base converter</h1>
+
+<div class="form-group">
+    <label for="number">Number</label>
+    <input id="number" class="form-control code" @oninput="OnNumberChanged" value="@Number" spellcheck="false" />
+</div>
+
+<div class="form-group">
+    <label for="inputBase">Input base</label>
+    <select id="inputBase" class="form-control" @onchange="OnInputBaseChanged" value="@InputBase">
+        <option value="auto">Auto-detect (supports 0x, 0b, 0o prefixes)</option>
+        @for (var i = 2; i <= 36; i++)
+        {
+            <option value="@i.ToString(CultureInfo.InvariantCulture)">Base @i</option>
+        }
+    </select>
+</div>
+
+<div class="form-group">
+    <label for="customBase">Custom output base (2 - 36)</label>
+    <input id="customBase" class="form-control" type="number" min="2" max="36" @oninput="OnCustomBaseChanged" value="@CustomBase" />
+</div>
+
+@if (ErrorMessage != null)
+{
+    <div class="alert alert-danger">@ErrorMessage</div>
+}
+else if (result != null)
+{
+    var conversionResult = result.Value;
+    <pre class="result">Detected input base: @conversionResult.InputBase
+Binary  (base 2): 0b@GroupDigits(ToBaseString(conversionResult.Value, 2), 4)
+Octal   (base 8): 0o@GroupDigits(ToBaseString(conversionResult.Value, 8), 3)
+Decimal (base10): @GroupDigits(ToBaseString(conversionResult.Value, 10), 3)
+Hex     (base16): 0x@GroupDigits(ToBaseString(conversionResult.Value, 16), 4)
+Custom  (base @conversionResult.CustomBase): @GroupDigits(ToBaseString(conversionResult.Value, conversionResult.CustomBase), GetGroupSize(conversionResult.CustomBase))</pre>
+}
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "value")]
+    public string? Number { get; set; }
+
+    [Parameter, SupplyParameterFromQuery(Name = "from")]
+    public string? InputBase { get; set; }
+
+    [Parameter, SupplyParameterFromQuery(Name = "custom")]
+    public string? CustomBase { get; set; }
+
+    ConversionResult? result;
+    string? ErrorMessage;
+
+    protected override void OnParametersSet()
+    {
+        Compute();
+    }
+
+    void OnNumberChanged(ChangeEventArgs e)
+    {
+        Number = e.Value?.ToString();
+        Compute();
+    }
+
+    void OnInputBaseChanged(ChangeEventArgs e)
+    {
+        InputBase = e.Value?.ToString();
+        Compute();
+    }
+
+    void OnCustomBaseChanged(ChangeEventArgs e)
+    {
+        CustomBase = e.Value?.ToString();
+        Compute();
+    }
+
+    void Compute()
+    {
+        Number ??= "0xff";
+        InputBase = NormalizeInputBase(InputBase);
+        CustomBase ??= "3";
+
+        if (!TryGetCustomBase(CustomBase, out var customBase, out var customBaseError))
+        {
+            ErrorMessage = customBaseError;
+            result = null;
+            NavigationManager.UpdateUrlUsingParameters(this, replaceHistory: true);
+            return;
+        }
+
+        if (!TryParseNumber(Number, InputBase, out var value, out var detectedBase, out var parseError))
+        {
+            ErrorMessage = parseError;
+            result = null;
+            NavigationManager.UpdateUrlUsingParameters(this, replaceHistory: true);
+            return;
+        }
+
+        result = new ConversionResult(value, detectedBase, customBase);
+        ErrorMessage = null;
+
+        CustomBase = customBase.ToString(CultureInfo.InvariantCulture);
+        NavigationManager.UpdateUrlUsingParameters(this, replaceHistory: true);
+    }
+
+    static string NormalizeInputBase(string? inputBase)
+    {
+        if (string.Equals(inputBase, "auto", StringComparison.OrdinalIgnoreCase))
+            return "auto";
+
+        if (int.TryParse(inputBase, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value >= 2 && value <= 36)
+            return value.ToString(CultureInfo.InvariantCulture);
+
+        return "auto";
+    }
+
+    static bool TryGetCustomBase(string customBaseText, out int customBase, out string? error)
+    {
+        if (!int.TryParse(customBaseText, NumberStyles.Integer, CultureInfo.InvariantCulture, out customBase) || customBase < 2 || customBase > 36)
+        {
+            error = "Custom base must be a number between 2 and 36.";
+            return false;
+        }
+
+        error = null;
+        return true;
+    }
+
+    static bool TryParseNumber(string text, string inputBaseSelection, out BigInteger result, out int detectedBase, out string? error)
+    {
+        result = BigInteger.Zero;
+        detectedBase = 10;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            error = "Please enter a number.";
+            return false;
+        }
+
+        text = text.Trim();
+
+        var isNegative = false;
+        if (text.StartsWith('+'))
+        {
+            text = text[1..];
+        }
+        else if (text.StartsWith('-'))
+        {
+            isNegative = true;
+            text = text[1..];
+        }
+
+        if (inputBaseSelection == "auto")
+        {
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                detectedBase = 16;
+                text = text[2..];
+            }
+            else if (text.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+            {
+                detectedBase = 2;
+                text = text[2..];
+            }
+            else if (text.StartsWith("0o", StringComparison.OrdinalIgnoreCase))
+            {
+                detectedBase = 8;
+                text = text[2..];
+            }
+            else
+            {
+                detectedBase = 10;
+            }
+        }
+        else
+        {
+            detectedBase = int.Parse(inputBaseSelection, CultureInfo.InvariantCulture);
+            text = StripPrefixForBase(text, detectedBase);
+        }
+
+        text = text.Replace("_", "", StringComparison.Ordinal);
+
+        if (text.Length == 0)
+        {
+            error = "The number has no digits.";
+            return false;
+        }
+
+        foreach (var c in text)
+        {
+            var digitValue = GetDigitValue(c);
+            if (digitValue < 0 || digitValue >= detectedBase)
+            {
+                error = $"Digit '{c}' is not valid for base {detectedBase}.";
+                return false;
+            }
+
+            result = (result * detectedBase) + digitValue;
+        }
+
+        if (isNegative)
+        {
+            result = -result;
+        }
+
+        return true;
+    }
+
+    static string StripPrefixForBase(string text, int numberBase)
+    {
+        if (numberBase == 16 && text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return text[2..];
+
+        if (numberBase == 2 && text.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+            return text[2..];
+
+        if (numberBase == 8 && text.StartsWith("0o", StringComparison.OrdinalIgnoreCase))
+            return text[2..];
+
+        return text;
+    }
+
+    static int GetDigitValue(char c)
+    {
+        if (c >= '0' && c <= '9')
+            return c - '0';
+
+        if (c >= 'A' && c <= 'Z')
+            return c - 'A' + 10;
+
+        if (c >= 'a' && c <= 'z')
+            return c - 'a' + 10;
+
+        return -1;
+    }
+
+    static string ToBaseString(BigInteger value, int numberBase)
+    {
+        if (value.IsZero)
+            return "0";
+
+        if (numberBase == 10)
+            return value.ToString(CultureInfo.InvariantCulture);
+
+        var isNegative = value < 0;
+        value = BigInteger.Abs(value);
+
+        const string Digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        var sb = new StringBuilder();
+
+        while (value > 0)
+        {
+            value = BigInteger.DivRem(value, numberBase, out var remainder);
+            sb.Append(Digits[(int)remainder]);
+        }
+
+        if (isNegative)
+        {
+            sb.Append('-');
+        }
+
+        var chars = sb.ToString().ToCharArray();
+        Array.Reverse(chars);
+        return new string(chars);
+    }
+
+    static int GetGroupSize(int numberBase) => numberBase switch
+    {
+        2 => 4,
+        8 => 3,
+        10 => 3,
+        16 => 4,
+        _ => 0,
+    };
+
+    static string GroupDigits(string text, int groupSize)
+    {
+        if (groupSize <= 0 || string.IsNullOrEmpty(text))
+            return text;
+
+        var isNegative = text.StartsWith("-", StringComparison.Ordinal);
+        if (isNegative)
+        {
+            text = text[1..];
+        }
+
+        var sb = new StringBuilder();
+
+        var index = text.Length;
+        while (index > 0)
+        {
+            var chunkStart = Math.Max(0, index - groupSize);
+            var chunkLength = index - chunkStart;
+            if (sb.Length > 0)
+            {
+                sb.Insert(0, ' ');
+            }
+
+            sb.Insert(0, text.AsSpan(chunkStart, chunkLength));
+            index = chunkStart;
+        }
+
+        if (isNegative)
+        {
+            sb.Insert(0, '-');
+        }
+
+        return sb.ToString();
+    }
+
+    readonly record struct ConversionResult(BigInteger Value, int InputBase, int CustomBase);
+}
