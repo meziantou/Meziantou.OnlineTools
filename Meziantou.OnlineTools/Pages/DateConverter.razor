@@ -1,0 +1,511 @@
+@page "/date-converter"
+@using Meziantou.Framework
+@using System.Globalization
+@inject NavigationManager NavigationManager
+
+<h1>Date converter</h1>
+
+<div class="form-group">
+    <label for="inputFormat">Input format</label>
+    <select id="inputFormat" class="form-control" @onchange="OnInputFormatChanged" value="@InputFormat">
+        <option value="@InputFormatAuto">Auto</option>
+        <option value="@InputFormatDateTimeString">Date/time string (including RFC formats)</option>
+        <option value="@InputFormatUnixSeconds">Unix timestamp (seconds)</option>
+        <option value="@InputFormatUnixMilliseconds">Unix timestamp (milliseconds)</option>
+        <option value="@InputFormatUnixMicroseconds">Unix timestamp (microseconds)</option>
+        <option value="@InputFormatDotNetTicks">Timestamp (.NET ticks)</option>
+        <option value="@InputFormatMongoObjectId">MongoDB ObjectId</option>
+    </select>
+</div>
+
+<div class="form-group">
+    <label for="inputValue">Value</label>
+    <input id="inputValue" class="form-control code" @oninput="OnInput" value="@Text" placeholder="Enter a date/time, unix timestamp, .NET ticks, MongoDB ObjectId, RFC value, ..." />
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (parsedValue.HasValue)
+{
+    <div class="alert alert-success">Parsed as @parsedSource</div>
+
+    <table class="table">
+        <tbody>
+            @foreach (var item in values)
+            {
+                <tr>
+                    <th>@item.Name</th>
+                    <td><code>@item.Value</code></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private const string InputFormatAuto = "auto";
+    private const string InputFormatDateTimeString = "datetime";
+    private const string InputFormatUnixSeconds = "unix-seconds";
+    private const string InputFormatUnixMilliseconds = "unix-milliseconds";
+    private const string InputFormatUnixMicroseconds = "unix-microseconds";
+    private const string InputFormatDotNetTicks = "dotnet-ticks";
+    private const string InputFormatMongoObjectId = "mongo-objectid";
+
+    private static readonly string[] StandardFormats = ["d", "D", "f", "F", "g", "G", "m", "M", "o", "O", "r", "R", "s", "t", "T", "u", "U", "y", "Y", "l"];
+
+    private static readonly string[] ExactDateFormats =
+    [
+        "yyyyMMdd",
+        "yyyyMMddHHmmss",
+        "yyyy-MM-dd",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm:ss.FFFFFFF",
+        "yyyy-MM-ddTHH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ss.FFFFFFFK",
+        "ddd, dd MMM yyyy HH':'mm':'ss 'GMT'",
+        "ddd, dd MMM yyyy HH':'mm':'ss 'UTC'",
+        "r",
+        "R",
+        "o",
+        "O",
+        "s",
+        "u",
+    ];
+
+    [Parameter, SupplyParameterFromQuery]
+    public string? Text { get; set; }
+
+    [Parameter, SupplyParameterFromQuery(Name = "format")]
+    public string? InputFormat { get; set; } = InputFormatAuto;
+
+    private DateTimeOffset? parsedValue;
+    private string? parsedSource;
+    private string? errorMessage;
+    private IReadOnlyList<DisplayValue> values = [];
+
+    protected override void OnParametersSet()
+    {
+        Compute();
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        Text = e.Value as string;
+        Compute();
+    }
+
+    private void OnInputFormatChanged(ChangeEventArgs e)
+    {
+        InputFormat = NormalizeInputFormat(e.Value as string);
+        Compute();
+    }
+
+    private void Compute()
+    {
+        InputFormat = NormalizeInputFormat(InputFormat);
+        NavigationManager.UpdateUrlUsingParameters(this, replaceHistory: true);
+
+        parsedValue = null;
+        parsedSource = null;
+        errorMessage = null;
+        values = [];
+
+        var input = Text?.Trim();
+        if (string.IsNullOrEmpty(input))
+            return;
+
+        if (!TryParseInput(input, InputFormat!, out var dateTimeOffset, out var source))
+        {
+            errorMessage = InputFormat == InputFormatAuto
+                ? "Unable to parse the value as a date/time, unix timestamp, timestamp, or MongoDB ObjectId."
+                : $"Unable to parse the value as {GetInputFormatDisplayName(InputFormat!)}.";
+            return;
+        }
+
+        parsedValue = dateTimeOffset;
+        parsedSource = source;
+        values = BuildDisplayValues(dateTimeOffset);
+    }
+
+    private static string NormalizeInputFormat(string? value)
+    {
+        return value switch
+        {
+            InputFormatDateTimeString => InputFormatDateTimeString,
+            InputFormatUnixSeconds => InputFormatUnixSeconds,
+            InputFormatUnixMilliseconds => InputFormatUnixMilliseconds,
+            InputFormatUnixMicroseconds => InputFormatUnixMicroseconds,
+            InputFormatDotNetTicks => InputFormatDotNetTicks,
+            InputFormatMongoObjectId => InputFormatMongoObjectId,
+            _ => InputFormatAuto,
+        };
+    }
+
+    private static string GetInputFormatDisplayName(string value)
+    {
+        return value switch
+        {
+            InputFormatDateTimeString => "Date/time string",
+            InputFormatUnixSeconds => "Unix timestamp (seconds)",
+            InputFormatUnixMilliseconds => "Unix timestamp (milliseconds)",
+            InputFormatUnixMicroseconds => "Unix timestamp (microseconds)",
+            InputFormatDotNetTicks => "Timestamp (.NET ticks)",
+            InputFormatMongoObjectId => "MongoDB ObjectId",
+            _ => "Auto",
+        };
+    }
+
+    private static bool TryParseInput(string input, string inputFormat, out DateTimeOffset value, out string source)
+    {
+        value = default;
+        source = string.Empty;
+
+        if (inputFormat == InputFormatAuto || inputFormat == InputFormatMongoObjectId)
+        {
+            if (TryParseMongoObjectId(input, out value))
+            {
+                source = "MongoDB ObjectId";
+                return true;
+            }
+
+            if (inputFormat == InputFormatMongoObjectId)
+            {
+                source = string.Empty;
+                return false;
+            }
+        }
+
+        if (inputFormat == InputFormatAuto || inputFormat == InputFormatDateTimeString)
+        {
+            if (TryParseDateTimeString(input, out value, out source))
+                return true;
+
+            if (inputFormat == InputFormatDateTimeString)
+                return false;
+        }
+
+        if (inputFormat == InputFormatAuto || inputFormat == InputFormatUnixSeconds)
+        {
+            if (TryParseAsUnixSeconds(input, out value))
+            {
+                source = "Unix timestamp (seconds)";
+                return true;
+            }
+
+            if (inputFormat == InputFormatUnixSeconds)
+            {
+                source = string.Empty;
+                return false;
+            }
+        }
+
+        if (inputFormat == InputFormatAuto || inputFormat == InputFormatUnixMilliseconds)
+        {
+            if (TryParseAsUnixMilliseconds(input, out value))
+            {
+                source = "Unix timestamp (milliseconds)";
+                return true;
+            }
+
+            if (inputFormat == InputFormatUnixMilliseconds)
+            {
+                source = string.Empty;
+                return false;
+            }
+        }
+
+        if (inputFormat == InputFormatAuto || inputFormat == InputFormatUnixMicroseconds)
+        {
+            if (TryParseAsUnixMicroseconds(input, out value))
+            {
+                source = "Unix timestamp (microseconds)";
+                return true;
+            }
+
+            if (inputFormat == InputFormatUnixMicroseconds)
+            {
+                source = string.Empty;
+                return false;
+            }
+        }
+
+        if (inputFormat == InputFormatAuto || inputFormat == InputFormatDotNetTicks)
+        {
+            if (TryParseAsDotNetTicks(input, out value))
+            {
+                source = "Timestamp (.NET ticks)";
+                return true;
+            }
+
+            if (inputFormat == InputFormatDotNetTicks)
+            {
+                source = string.Empty;
+                return false;
+            }
+        }
+
+        if (inputFormat == InputFormatAuto && TryParseNumericTimestamp(input, out value, out source))
+        {
+            return true;
+        }
+
+        source = string.Empty;
+        return false;
+    }
+
+    private static bool TryParseDateTimeString(string input, out DateTimeOffset value, out string source)
+    {
+        if (DateTimeOffset.TryParse(input, CultureInfo.CurrentCulture, DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeLocal, out value))
+        {
+            source = "Date/time string (current culture)";
+            return true;
+        }
+
+        if (DateTimeOffset.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeLocal, out value))
+        {
+            source = "Date/time string (invariant culture)";
+            return true;
+        }
+
+        if (DateTimeOffset.TryParseExact(input, ExactDateFormats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal, out value))
+        {
+            source = "Date/time string (exact format)";
+            return true;
+        }
+
+        source = string.Empty;
+        return false;
+    }
+
+    private static bool TryParseAsDotNetTicks(string input, out DateTimeOffset value)
+    {
+        value = default;
+
+        if (!long.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+            return false;
+
+        return TryCreateFromDotNetTicks(number, out value);
+    }
+
+    private static bool TryParseAsUnixSeconds(string input, out DateTimeOffset value)
+    {
+        value = default;
+
+        if (!long.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+            return false;
+
+        return TryCreateFromUnixSeconds(number, out value);
+    }
+
+    private static bool TryParseAsUnixMilliseconds(string input, out DateTimeOffset value)
+    {
+        value = default;
+
+        if (!long.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+            return false;
+
+        return TryCreateFromUnixMilliseconds(number, out value);
+    }
+
+    private static bool TryParseAsUnixMicroseconds(string input, out DateTimeOffset value)
+    {
+        value = default;
+
+        if (!long.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+            return false;
+
+        return TryCreateFromUnixMicroseconds(number, out value);
+    }
+
+    private static bool TryParseMongoObjectId(string input, out DateTimeOffset value)
+    {
+        value = default;
+
+        if (input.Length != 24)
+            return false;
+
+        if (!input.All(IsHexCharacter))
+            return false;
+
+        if (!uint.TryParse(input[..8], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var unixSeconds))
+            return false;
+
+        try
+        {
+            value = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsHexCharacter(char c)
+    {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    }
+
+    private static bool TryParseNumericTimestamp(string input, out DateTimeOffset value, out string source)
+    {
+        value = default;
+        source = string.Empty;
+
+        if (!long.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+            return false;
+
+        var digitsCount = input.TrimStart('-', '+').Length;
+
+        if (digitsCount <= 11 && TryCreateFromUnixSeconds(number, out value))
+        {
+            source = "Unix timestamp (seconds)";
+            return true;
+        }
+
+        if (digitsCount <= 14 && TryCreateFromUnixMilliseconds(number, out value))
+        {
+            source = "Unix timestamp (milliseconds)";
+            return true;
+        }
+
+        if (digitsCount <= 17 && TryCreateFromUnixMicroseconds(number, out value))
+        {
+            source = "Unix timestamp (microseconds)";
+            return true;
+        }
+
+        if (TryCreateFromDotNetTicks(number, out value))
+        {
+            source = "Timestamp (.NET ticks)";
+            return true;
+        }
+
+        if (TryCreateFromUnixSeconds(number, out value))
+        {
+            source = "Unix timestamp (seconds)";
+            return true;
+        }
+
+        if (TryCreateFromUnixMilliseconds(number, out value))
+        {
+            source = "Unix timestamp (milliseconds)";
+            return true;
+        }
+
+        if (TryCreateFromUnixMicroseconds(number, out value))
+        {
+            source = "Unix timestamp (microseconds)";
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryCreateFromDotNetTicks(long ticks, out DateTimeOffset value)
+    {
+        value = default;
+
+        if (ticks < DateTimeOffset.MinValue.Ticks || ticks > DateTimeOffset.MaxValue.Ticks)
+            return false;
+
+        try
+        {
+            value = new DateTimeOffset(ticks, TimeSpan.Zero);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryCreateFromUnixSeconds(long seconds, out DateTimeOffset value)
+    {
+        value = default;
+
+        try
+        {
+            value = DateTimeOffset.FromUnixTimeSeconds(seconds);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryCreateFromUnixMilliseconds(long milliseconds, out DateTimeOffset value)
+    {
+        value = default;
+
+        try
+        {
+            value = DateTimeOffset.FromUnixTimeMilliseconds(milliseconds);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryCreateFromUnixMicroseconds(long microseconds, out DateTimeOffset value)
+    {
+        value = default;
+
+        try
+        {
+            var milliseconds = microseconds / 1_000;
+            var extraMicroseconds = microseconds % 1_000;
+
+            value = DateTimeOffset.FromUnixTimeMilliseconds(milliseconds).AddTicks(extraMicroseconds * 10);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static IReadOnlyList<DisplayValue> BuildDisplayValues(DateTimeOffset parsed)
+    {
+        List<DisplayValue> result = [];
+
+        result.Add(new DisplayValue("UTC", parsed.UtcDateTime.ToString("o", CultureInfo.InvariantCulture)));
+        result.Add(new DisplayValue("Local", parsed.LocalDateTime.ToString("o", CultureInfo.InvariantCulture)));
+
+        foreach (var format in StandardFormats)
+        {
+            result.Add(new DisplayValue($".NET format '{format}'", FormatUsingStandardFormat(parsed, format)));
+        }
+
+        result.Add(new DisplayValue("Unix Timestamp", parsed.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)));
+        result.Add(new DisplayValue("Timestamp (.NET ticks)", parsed.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture)));
+        result.Add(new DisplayValue("Excel date/time", parsed.UtcDateTime.ToOADate().ToString("G17", CultureInfo.InvariantCulture)));
+
+        return result;
+    }
+
+    private static string FormatUsingStandardFormat(DateTimeOffset value, string format)
+    {
+        if (format == "U")
+            return value.UtcDateTime.ToString("U", CultureInfo.InvariantCulture);
+
+        if (format == "l")
+            return value.UtcDateTime.ToString("r", CultureInfo.InvariantCulture).ToLowerInvariant();
+
+        try
+        {
+            return value.ToString(format, CultureInfo.InvariantCulture);
+        }
+        catch (FormatException ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    private sealed record DisplayValue(string Name, string Value);
+}
