@@ -1,0 +1,146 @@
+@page "/url-parser"
+@using System.Globalization
+@using System.Net
+
+<h1>URL Parser</h1>
+
+<p>Parse an absolute URL and inspect each component.</p>
+
+<div class="form-group">
+    <label for="urlInput">URL</label>
+    <input id="urlInput" class="form-control code" @bind="url" placeholder="https://username:password@example.com:8080/path?foo=bar&amp;foo=baz#hash" />
+</div>
+
+<div>
+    <button class="btn btn-secondary" @onclick="ParseUrl">Parse</button>
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (urlComponents.Count > 0)
+{
+    <h3>URL components</h3>
+    <ResultValueList Values="urlComponents" />
+
+    <h3>Query string values</h3>
+    @if (queryStringValues.Count == 0)
+    {
+        <p>No query string value found.</p>
+    }
+    else
+    {
+        <ResultValueList Values="queryStringValues" />
+    }
+}
+
+@code {
+    private string? url;
+    private string? errorMessage;
+    private IReadOnlyList<ResultValue> urlComponents = [];
+    private IReadOnlyList<ResultValue> queryStringValues = [];
+
+    private void ParseUrl()
+    {
+        errorMessage = null;
+        urlComponents = [];
+        queryStringValues = [];
+
+        var input = (url ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(input))
+        {
+            errorMessage = "Please enter an absolute URL.";
+            return;
+        }
+
+        if (!Uri.TryCreate(input, UriKind.Absolute, out var uri))
+        {
+            errorMessage = "Invalid URL. Please enter a valid absolute URL.";
+            return;
+        }
+
+        var (username, password) = ParseUserInfo(uri);
+        var queryString = uri.Query;
+
+        urlComponents =
+        [
+            new("Scheme", DisplayValue(uri.Scheme)),
+            new("Username", DisplayValue(username)),
+            new("Password", DisplayValue(password)),
+            new("Domain", DisplayValue(uri.Host)),
+            new("Port", GetPortDisplay(uri)),
+            new("Query string", DisplayValue(queryString)),
+            new("Hash", DisplayValue(uri.Fragment)),
+        ];
+
+        queryStringValues = ParseQueryString(queryString);
+    }
+
+    private static (string? Username, string? Password) ParseUserInfo(Uri uri)
+    {
+        var userInfo = uri.GetComponents(UriComponents.UserInfo, UriFormat.UriEscaped);
+        if (string.IsNullOrEmpty(userInfo))
+            return (null, null);
+
+        var separatorIndex = userInfo.IndexOf(':');
+        if (separatorIndex < 0)
+            return (WebUtility.UrlDecode(userInfo), null);
+
+        var username = WebUtility.UrlDecode(userInfo[..separatorIndex]);
+        var password = WebUtility.UrlDecode(userInfo[(separatorIndex + 1)..]);
+        return (username, password);
+    }
+
+    private static string GetPortDisplay(Uri uri)
+    {
+        return uri.IsDefaultPort
+            ? "(not set)"
+            : uri.Port.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static IReadOnlyList<ResultValue> ParseQueryString(string queryString)
+    {
+        if (string.IsNullOrEmpty(queryString))
+            return [];
+
+        var query = queryString.StartsWith('?') ? queryString[1..] : queryString;
+        if (string.IsNullOrEmpty(query))
+            return [];
+
+        var results = new List<ResultValue>();
+        var keyCount = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var pair in query.Split('&', StringSplitOptions.None))
+        {
+            if (pair.Length == 0)
+                continue;
+
+            var separatorIndex = pair.IndexOf('=');
+            var rawKey = separatorIndex < 0 ? pair : pair[..separatorIndex];
+            var rawValue = separatorIndex < 0 ? string.Empty : pair[(separatorIndex + 1)..];
+
+            var key = WebUtility.UrlDecode(rawKey) ?? string.Empty;
+            var value = WebUtility.UrlDecode(rawValue) ?? string.Empty;
+
+            if (string.IsNullOrEmpty(key))
+            {
+                key = "(empty key)";
+            }
+
+            var index = keyCount.GetValueOrDefault(key, 0) + 1;
+            keyCount[key] = index;
+
+            var label = index == 1 ? key : $"{key} [{index}]";
+            results.Add(new ResultValue(label, value));
+        }
+
+        return results;
+    }
+
+    private static string DisplayValue(string? value)
+    {
+        return string.IsNullOrEmpty(value) ? "(not set)" : value;
+    }
+}
