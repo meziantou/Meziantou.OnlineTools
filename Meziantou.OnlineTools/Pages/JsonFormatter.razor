@@ -6,6 +6,8 @@
 <textarea class="form-control code" @bind="text"></textarea>
 
 <div>
+    <label for="indentSize">Spaces</label>
+    <input id="indentSize" type="number" min="1" max="8" class="form-control" style="width: 8em; display: inline-block;" @bind="indentSize" />
     <button class="btn btn-secondary" @onclick="() => Format(true)">Format</button>
     <button class="btn btn-secondary" @onclick="() => Format(false)">Minify</button>
 </div>
@@ -19,6 +21,7 @@
     string? text;
     string? result;
     string? resultLabel;
+    int indentSize = 2;
 
     void Format(bool indented)
     {
@@ -26,7 +29,14 @@
         try
         {
             var doc = JsonDocument.Parse(text ?? "", new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip, MaxDepth = 1000 });
-            result = JsonUtils.ToDisplayJson(doc.RootElement);
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = indented,
+                IndentCharacter = ' ',
+                IndentSize = Math.Clamp(indentSize, 1, 8),
+            };
+
+            result = JsonSerializer.Serialize(doc.RootElement, options);
         }
         catch (Exception ex)
         {
