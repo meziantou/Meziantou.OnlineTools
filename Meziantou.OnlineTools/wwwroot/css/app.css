@@ -198,7 +198,7 @@ textarea.form-control {
     box-shadow: 0 0 0 0.2rem var(--focus-shadow);
 }
 
-input.code, textarea.code {
+.code {
     font-family: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 

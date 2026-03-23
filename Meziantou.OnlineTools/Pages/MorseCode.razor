@@ -1,0 +1,33 @@
+@page "/morse-code"
+
+<h1>String to Morse code</h1>
+
+<p>Convert text to International Morse code. Spaces are represented as <code>/</code>.</p>
+
+<div class="form-group">
+    <label for="value">Value</label>
+    <textarea id="value" class="form-control code" @oninput="OnInputChanged">@value</textarea>
+</div>
+
+<ResultValueSingle CopyLabel="Morse code" Value="@result" />
+
+@code {
+    private string value = string.Empty;
+    private string result = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Compute();
+    }
+
+    private void OnInputChanged(ChangeEventArgs e)
+    {
+        value = e.Value?.ToString() ?? string.Empty;
+        Compute();
+    }
+
+    private void Compute()
+    {
+        result = TextEncodingUtils.ToMorseCode(value);
+    }
+}
