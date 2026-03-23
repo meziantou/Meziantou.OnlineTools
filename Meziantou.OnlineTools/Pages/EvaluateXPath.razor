@@ -1,0 +1,143 @@
+@page "/evaluate-xpath"
+@using System.Globalization
+@using System.Xml
+@using System.Xml.XPath
+
+<h1>XPath evaluator</h1>
+
+<div class="form-group">
+    <label for="xpathInputXml">XML</label>
+    <textarea id="xpathInputXml" class="form-control code" @bind="xmlInput" spellcheck="false"></textarea>
+</div>
+
+<div class="form-group">
+    <label for="xpathExpression">XPath expression</label>
+    <input id="xpathExpression" class="form-control code" @bind="xpathExpression" spellcheck="false" />
+</div>
+
+<div>
+    <button class="btn btn-secondary" @onclick="RunXPathEvaluation">Evaluate</button>
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (scalarResult != null)
+{
+    <ResultValueSingle CopyLabel="@scalarResultLabel" Value="@scalarResult" />
+}
+
+@if (matches.Count > 0)
+{
+    <h3>Matches</h3>
+    <ResultValueList Values="matches" />
+}
+else if (hasEvaluated && errorMessage == null && scalarResult == null)
+{
+    <p>No match found.</p>
+}
+
+@code {
+    private string xmlInput =
+        """
+        <root>
+          <users>
+            <user id="1">Alice</user>
+            <user id="2">Bob</user>
+          </users>
+        </root>
+        """;
+
+    private string xpathExpression = "/root/users/user[@id='2']/text()";
+    private string? errorMessage;
+    private string? scalarResult;
+    private string scalarResultLabel = "Result";
+    private IReadOnlyList<ResultValue> matches = [];
+    private bool hasEvaluated;
+
+    private void RunXPathEvaluation()
+    {
+        hasEvaluated = true;
+        errorMessage = null;
+        scalarResult = null;
+        scalarResultLabel = "Result";
+        matches = [];
+
+        try
+        {
+            using var reader = new StringReader(xmlInput ?? string.Empty);
+            using var xmlReader = XmlReader.Create(reader, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+            });
+
+            var document = new XPathDocument(xmlReader);
+            var navigator = document.CreateNavigator();
+            if (navigator == null)
+            {
+                errorMessage = "Cannot evaluate XPath on the provided XML.";
+                return;
+            }
+
+            var expressionResult = navigator.Evaluate(xpathExpression ?? string.Empty);
+            switch (expressionResult)
+            {
+                case XPathNodeIterator iterator:
+                {
+                    var results = new List<ResultValue>();
+                    var index = 1;
+                    while (iterator.MoveNext())
+                    {
+                        var current = iterator.Current;
+                        if (current == null)
+                            continue;
+
+                        var label = $"Match {index} ({current.NodeType})";
+                        results.Add(new ResultValue(label, GetNodeDisplayValue(current)));
+                        index++;
+                    }
+
+                    matches = results;
+                    break;
+                }
+
+                case bool boolResult:
+                    scalarResultLabel = "Boolean result";
+                    scalarResult = boolResult.ToString();
+                    break;
+
+                case double numberResult:
+                    scalarResultLabel = "Numeric result";
+                    scalarResult = numberResult.ToString(CultureInfo.InvariantCulture);
+                    break;
+
+                case string stringResult:
+                    scalarResultLabel = "String result";
+                    scalarResult = stringResult;
+                    break;
+
+                default:
+                    scalarResult = expressionResult?.ToString();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private static string GetNodeDisplayValue(XPathNavigator navigator)
+    {
+        if (navigator.NodeType is XPathNodeType.Attribute or XPathNodeType.Text or XPathNodeType.Comment or XPathNodeType.ProcessingInstruction)
+            return navigator.Value;
+
+        if (!string.IsNullOrEmpty(navigator.OuterXml))
+            return navigator.OuterXml;
+
+        return navigator.Value;
+    }
+}

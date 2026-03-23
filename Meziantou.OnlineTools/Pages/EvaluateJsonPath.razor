@@ -1,0 +1,100 @@
+@page "/evaluate-jsonpath"
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using Json.Path
+
+<h1>JsonPath evaluator</h1>
+
+<div class="form-group">
+    <label for="jsonPathInputJson">JSON</label>
+    <textarea id="jsonPathInputJson" class="form-control code" @bind="jsonInput" spellcheck="false"></textarea>
+</div>
+
+<div class="form-group">
+    <label for="jsonPathExpression">JsonPath expression</label>
+    <input id="jsonPathExpression" class="form-control code" @bind="jsonPathExpression" spellcheck="false" />
+</div>
+
+<div>
+    <button class="btn btn-secondary" @onclick="RunJsonPathEvaluation">Evaluate</button>
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (matches.Count > 0)
+{
+    <h3>Matches</h3>
+    <ResultValueList Values="matches" />
+}
+else if (hasEvaluated && errorMessage == null)
+{
+    <p>No match found.</p>
+}
+
+@code {
+    private string jsonInput =
+        """
+        {
+          "store": {
+            "book": [
+              { "title": "Sayings of the Century", "price": 8.95 },
+              { "title": "Sword of Honour", "price": 12.99 }
+            ]
+          }
+        }
+        """;
+
+    private string jsonPathExpression = "$.store.book[*].title";
+    private string? errorMessage;
+    private IReadOnlyList<ResultValue> matches = [];
+    private bool hasEvaluated;
+
+    private void RunJsonPathEvaluation()
+    {
+        hasEvaluated = true;
+        errorMessage = null;
+        matches = [];
+
+        try
+        {
+            var jsonNode = JsonNode.Parse(jsonInput ?? string.Empty);
+            if (jsonNode == null)
+            {
+                errorMessage = "Cannot evaluate JsonPath on empty JSON input.";
+                return;
+            }
+
+            var path = JsonPath.Parse(jsonPathExpression ?? string.Empty);
+            var evaluationResult = path.Evaluate(jsonNode);
+
+            var values = new List<ResultValue>();
+            var index = 1;
+
+            foreach (var match in evaluationResult.Matches ?? [])
+            {
+                var label = match.Location?.ToString();
+                if (string.IsNullOrWhiteSpace(label))
+                {
+                    label = $"Match {index}";
+                }
+
+                var value = match.Value?.ToJsonString(new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                }) ?? "null";
+
+                values.Add(new ResultValue(label, value));
+                index++;
+            }
+
+            matches = values;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+}
