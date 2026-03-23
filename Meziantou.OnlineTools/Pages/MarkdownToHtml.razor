@@ -1,0 +1,52 @@
+@page "/markdown-to-html"
+@using Markdig
+
+<h1>Markdown to HTML</h1>
+
+<p>Convert Markdown to HTML using Markdig with all built-in markdown extensions enabled.</p>
+
+<textarea class="form-control code" @bind="text"></textarea>
+
+<div>
+    <button class="btn btn-secondary" @onclick="ConvertToHtml">Convert to HTML</button>
+</div>
+
+@if (result != null)
+{
+    <ResultValueSingle CopyLabel="HTML" Value="@result" />
+}
+
+@code {
+    private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .UseBootstrap()
+        .UseEmojiAndSmiley(true)
+        .Build();
+
+    private string? text = """
+# Hello, Markdown
+
+- Item 1
+- Item 2
+
+**Bold** and _italic_
+""";
+    private string? result;
+
+    protected override void OnInitialized()
+    {
+        ConvertToHtml();
+    }
+
+    private void ConvertToHtml()
+    {
+        try
+        {
+            result = Markdown.ToHtml(text ?? string.Empty, Pipeline);
+        }
+        catch (Exception ex)
+        {
+            result = ex.Message;
+        }
+    }
+}
