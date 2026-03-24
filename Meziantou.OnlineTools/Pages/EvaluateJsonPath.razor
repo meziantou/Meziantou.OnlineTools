@@ -1,7 +1,7 @@
 @page "/evaluate-jsonpath"
 @using System.Text.Json
 @using System.Text.Json.Nodes
-@using Json.Path
+@using Meziantou.Framework.Json
 
 <h1>JsonPath evaluator</h1>
 
@@ -73,9 +73,9 @@ else if (hasEvaluated && errorMessage == null)
             var values = new List<ResultValue>();
             var index = 1;
 
-            foreach (var match in evaluationResult.Matches ?? [])
+            foreach (var match in evaluationResult)
             {
-                var label = match.Location?.ToString();
+                var label = match.NormalizedPath;
                 if (string.IsNullOrWhiteSpace(label))
                 {
                     label = $"Match {index}";
