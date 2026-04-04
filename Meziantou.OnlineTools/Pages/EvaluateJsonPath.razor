@@ -75,7 +75,7 @@ else if (hasEvaluated && errorMessage == null)
 
             foreach (var match in evaluationResult)
             {
-                var label = match.NormalizedPath;
+                var label = match.Path;
                 if (string.IsNullOrWhiteSpace(label))
                 {
                     label = $"Match {index}";
