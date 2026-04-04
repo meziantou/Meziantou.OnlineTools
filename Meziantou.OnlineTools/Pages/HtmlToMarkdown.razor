@@ -1,0 +1,45 @@
+@page "/html-to-markdown"
+
+<h1>HTML to Markdown</h1>
+
+<p>Convert HTML fragments to Markdown using Meziantou.Framework.HtmlToMarkdown.</p>
+
+<textarea class="form-control code" @bind="text"></textarea>
+
+<div>
+    <button class="btn btn-secondary" @onclick="ConvertToMarkdown">Convert to Markdown</button>
+</div>
+
+@if (result != null)
+{
+    <ResultValueSingle CopyLabel="Markdown" Value="@result" />
+}
+
+@code {
+    private string? text = """
+<h1>Hello, HTML</h1>
+<ul>
+  <li>Item 1</li>
+  <li><strong>Item 2</strong></li>
+</ul>
+<p><em>Markdown</em> output</p>
+""";
+    private string? result;
+
+    protected override void OnInitialized()
+    {
+        ConvertToMarkdown();
+    }
+
+    private void ConvertToMarkdown()
+    {
+        try
+        {
+            result = Meziantou.Framework.HtmlToMarkdown.Convert(text ?? string.Empty);
+        }
+        catch (Exception ex)
+        {
+            result = ex.Message;
+        }
+    }
+}
