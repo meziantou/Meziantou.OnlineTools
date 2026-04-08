@@ -69,7 +69,7 @@
         var generatedQRCode = qrCodeType switch
         {
             QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
-            QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
+            QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.M),
             _ => global::Meziantou.Framework.QRCode.Create(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
         };
 
