@@ -60,6 +60,12 @@
 
     void GenerateQRCode()
     {
+        if (string.IsNullOrEmpty(text))
+        {
+            qrcode = null;
+            return;
+        }
+
         var generatedQRCode = qrCodeType switch
         {
             QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
