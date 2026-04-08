@@ -62,12 +62,12 @@
     {
         var generatedQRCode = qrCodeType switch
         {
-            QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.QRCode.CreateMicroQR(text, global::Meziantou.Framework.QRCode.ErrorCorrectionLevel.Q),
-            QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.QRCode.CreateRMQR(text, global::Meziantou.Framework.QRCode.ErrorCorrectionLevel.Q),
-            _ => global::Meziantou.Framework.QRCode.QRCode.Create(text, global::Meziantou.Framework.QRCode.ErrorCorrectionLevel.Q),
+            QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
+            QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
+            _ => global::Meziantou.Framework.QRCode.Create(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
         };
 
-        qrcode = generatedQRCode.ToSvg(new global::Meziantou.Framework.QRCode.QRCodeSvgOptions
+        qrcode = global::Meziantou.Framework.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.QRCodeSvgOptions
         {
             ModuleSize = 10,
         });
