@@ -13,7 +13,7 @@
 <textarea class="form-control code" @oninput="OnTextInput"></textarea>
 <button type="button" @onclick="Click">Generate</button>
 
-<div>
+<div class="qrcode-output">
     @(new MarkupString(qrcode ?? ""))
 </div>
 
@@ -73,10 +73,11 @@
             _ => global::Meziantou.Framework.QRCode.Create(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
         };
 
-        qrcode = global::Meziantou.Framework.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.QRCodeSvgOptions
+        var svg = global::Meziantou.Framework.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.QRCodeSvgOptions
         {
             ModuleSize = 10,
         });
+        qrcode = svg.Replace("<svg ", "<svg style=\"max-width:100%;height:auto;\" ", StringComparison.Ordinal);
     }
 
     enum QRCodeGenerationType
