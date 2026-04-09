@@ -13,9 +13,13 @@
 <textarea class="form-control code" @oninput="OnTextInput"></textarea>
 <button type="button" @onclick="Click">Generate</button>
 
-<div class="qrcode-output">
+<div class="qrcode-output" style="max-width: 400px">
     @(new MarkupString(qrcode ?? ""))
 </div>
+@if (errorMessage != null)
+{
+    <div class="alert alert-warning mt-2" role="alert">@errorMessage</div>
+}
 
 <h2>Examples</h2>
 <div>
@@ -33,6 +37,7 @@
 @code {
     string text = "";
     string? qrcode;
+    string? errorMessage;
     QRCodeGenerationType qrCodeType = QRCodeGenerationType.Standard;
 
     public QRCode()
@@ -63,21 +68,31 @@
         if (string.IsNullOrEmpty(text))
         {
             qrcode = null;
+            errorMessage = null;
             return;
         }
 
-        var generatedQRCode = qrCodeType switch
+        try
         {
-            QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
-            QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.M),
-            _ => global::Meziantou.Framework.QRCode.Create(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
-        };
+            var generatedQRCode = qrCodeType switch
+            {
+                QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
+                QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.M),
+                _ => global::Meziantou.Framework.QRCode.Create(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
+            };
 
-        var svg = global::Meziantou.Framework.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.QRCodeSvgOptions
+            var svg = global::Meziantou.Framework.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.QRCodeSvgOptions
+            {
+                ModuleSize = 10,
+            });
+            qrcode = svg.Replace("<svg ", "<svg style=\"max-width:100%;height:auto;\" ", StringComparison.Ordinal);
+            errorMessage = null;
+        }
+        catch (InvalidOperationException ex)
         {
-            ModuleSize = 10,
-        });
-        qrcode = svg.Replace("<svg ", "<svg style=\"max-width:100%;height:auto;\" ", StringComparison.Ordinal);
+            qrcode = null;
+            errorMessage = ex.Message;
+        }
     }
 
     enum QRCodeGenerationType
