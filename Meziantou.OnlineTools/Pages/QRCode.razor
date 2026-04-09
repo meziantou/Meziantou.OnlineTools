@@ -1,13 +1,25 @@
 @page "/qr-code"
-@using QRCoder
 <h1>QR Code generator</h1>
 
-<textarea class="form-control code" @oninput="GenerateQRCode"></textarea>
+<div>
+    <label for="qrCodeType">QR Code type</label>
+    <select id="qrCodeType" class="form-control" @onchange="OnQRCodeTypeChanged">
+        <option value="@QRCodeGenerationType.Standard">Standard</option>
+        <option value="@QRCodeGenerationType.MicroQR">Micro QR</option>
+        <option value="@QRCodeGenerationType.Mnqr">MNQR (rMQR)</option>
+    </select>
+</div>
+
+<textarea class="form-control code" @oninput="OnTextInput"></textarea>
 <button type="button" @onclick="Click">Generate</button>
 
-<div>
+<div class="qrcode-output" style="max-width: 400px">
     @(new MarkupString(qrcode ?? ""))
 </div>
+@if (errorMessage != null)
+{
+    <div class="alert alert-warning mt-2" role="alert">@errorMessage</div>
+}
 
 <h2>Examples</h2>
 <div>
@@ -23,28 +35,70 @@
 
 
 @code {
+    string text = "";
     string? qrcode;
+    string? errorMessage;
+    QRCodeGenerationType qrCodeType = QRCodeGenerationType.Standard;
 
     public QRCode()
     {
-        GenerateQRCode("");
+        GenerateQRCode();
     }
 
     void Click()
     {
+        GenerateQRCode();
         StateHasChanged();
     }
 
-    void GenerateQRCode(ChangeEventArgs e)
+    void OnTextInput(ChangeEventArgs e)
     {
-        GenerateQRCode(e.Value?.ToString() ?? "");
+        text = e.Value?.ToString() ?? "";
+        GenerateQRCode();
     }
 
-    void GenerateQRCode(string text)
+    void OnQRCodeTypeChanged(ChangeEventArgs e)
     {
-        using var qrGenerator = new QRCodeGenerator();
-        var qrCodeData = qrGenerator.CreateQrCode(text ?? "", QRCodeGenerator.ECCLevel.Q);
-        using var svg = new SvgQRCode(qrCodeData);
-        this.qrcode = svg.GetGraphic(10);
+        qrCodeType = Enum.Parse<QRCodeGenerationType>(e.Value?.ToString() ?? nameof(QRCodeGenerationType.Standard), ignoreCase: true);
+        GenerateQRCode();
+    }
+
+    void GenerateQRCode()
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            qrcode = null;
+            errorMessage = null;
+            return;
+        }
+
+        try
+        {
+            var generatedQRCode = qrCodeType switch
+            {
+                QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
+                QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.M),
+                _ => global::Meziantou.Framework.QRCode.Create(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
+            };
+
+            var svg = global::Meziantou.Framework.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.QRCodeSvgOptions
+            {
+                ModuleSize = 10,
+            });
+            qrcode = svg.Replace("<svg ", "<svg style=\"max-width:100%;height:auto;\" ", StringComparison.Ordinal);
+            errorMessage = null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            qrcode = null;
+            errorMessage = ex.Message;
+        }
+    }
+
+    enum QRCodeGenerationType
+    {
+        Standard,
+        MicroQR,
+        Mnqr,
     }
 }
