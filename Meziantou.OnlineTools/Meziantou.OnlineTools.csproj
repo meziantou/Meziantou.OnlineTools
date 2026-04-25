@@ -10,8 +10,8 @@
     <PackageReference Include="Meziantou.Framework.HtmlToMarkdown" Version="1.0.2" />
     <PackageReference Include="Meziantou.Framework.JsonPath" Version="1.0.1" />
     <PackageReference Include="Meziantou.Framework.Unicode" Version="1.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.6" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.6" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.7" PrivateAssets="all" />
     <PackageReference Include="Meziantou.AspNetCore.Components" Version="2.0.31" />
     <PackageReference Include="Meziantou.Framework.ByteSize" Version="2.1.9" />
     <PackageReference Include="Meziantou.Framework.Scheduling" Version="2.0.11" />
