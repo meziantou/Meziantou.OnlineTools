@@ -18,7 +18,7 @@
     <PackageReference Include="Meziantou.Framework.TextDiff" Version="1.0.1" />
     <PackageReference Include="Meziantou.GitLabClient" Version="1.1.26" />
     <PackageReference Include="Meziantou.Framework.QRCode" Version="1.0.5" />
-    <PackageReference Include="YamlDotNet" Version="17.0.1" />
+    <PackageReference Include="YamlDotNet" Version="17.1.0" />
   </ItemGroup>
 
   <ItemGroup>
