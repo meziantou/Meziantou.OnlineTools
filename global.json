@@ -4,7 +4,7 @@
     "rollForward": "latestFeature"
   },
   "msbuild-sdks": {
-    "Meziantou.NET.Sdk": "1.0.91",
-    "Meziantou.NET.Sdk.BlazorWebAssembly": "1.0.91"
+    "Meziantou.NET.Sdk": "1.0.93",
+    "Meziantou.NET.Sdk.BlazorWebAssembly": "1.0.93"
   }
 }
