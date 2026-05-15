@@ -10,12 +10,29 @@
     </select>
 </div>
 
+<div>
+    <label for="errorCorrectionLevel">Resiliency level</label>
+    <select id="errorCorrectionLevel" class="form-control" value="@errorCorrectionLevel" @onchange="OnErrorCorrectionLevelChanged">
+        <option value="@QRCodeErrorCorrectionLevel.L">L</option>
+        <option value="@QRCodeErrorCorrectionLevel.M">M</option>
+        <option value="@QRCodeErrorCorrectionLevel.Q">Q</option>
+        <option value="@QRCodeErrorCorrectionLevel.H">H</option>
+    </select>
+</div>
+
 <textarea class="form-control code" @oninput="OnTextInput"></textarea>
 <button type="button" @onclick="Click">Generate</button>
 
 <div class="qrcode-output" style="max-width: 400px">
     @(new MarkupString(qrcode ?? ""))
 </div>
+@if (qrcode != null)
+{
+    <div class="mt-2">
+        <strong>Version:</strong> @qrcodeVersion<br />
+        <strong>Modules:</strong> @qrcodeModules
+    </div>
+}
 @if (errorMessage != null)
 {
     <div class="alert alert-warning mt-2" role="alert">@errorMessage</div>
@@ -37,8 +54,11 @@
 @code {
     string text = "";
     string? qrcode;
+    string? qrcodeVersion;
+    string? qrcodeModules;
     string? errorMessage;
     QRCodeGenerationType qrCodeType = QRCodeGenerationType.Standard;
+    QRCodeErrorCorrectionLevel errorCorrectionLevel = GetDefaultErrorCorrectionLevel(QRCodeGenerationType.Standard);
 
     public QRCode()
     {
@@ -60,6 +80,13 @@
     void OnQRCodeTypeChanged(ChangeEventArgs e)
     {
         qrCodeType = Enum.Parse<QRCodeGenerationType>(e.Value?.ToString() ?? nameof(QRCodeGenerationType.Standard), ignoreCase: true);
+        errorCorrectionLevel = GetDefaultErrorCorrectionLevel(qrCodeType);
+        GenerateQRCode();
+    }
+
+    void OnErrorCorrectionLevelChanged(ChangeEventArgs e)
+    {
+        errorCorrectionLevel = Enum.Parse<QRCodeErrorCorrectionLevel>(e.Value?.ToString() ?? nameof(QRCodeErrorCorrectionLevel.Q), ignoreCase: true);
         GenerateQRCode();
     }
 
@@ -68,17 +95,20 @@
         if (string.IsNullOrEmpty(text))
         {
             qrcode = null;
+            qrcodeVersion = null;
+            qrcodeModules = null;
             errorMessage = null;
             return;
         }
 
         try
         {
+            var frameworkErrorCorrectionLevel = ToFrameworkErrorCorrectionLevel(errorCorrectionLevel);
             var generatedQRCode = qrCodeType switch
             {
-                QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
-                QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, global::Meziantou.Framework.ErrorCorrectionLevel.M),
-                _ => global::Meziantou.Framework.QRCode.Create(text, global::Meziantou.Framework.ErrorCorrectionLevel.Q),
+                QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, frameworkErrorCorrectionLevel),
+                QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, frameworkErrorCorrectionLevel),
+                _ => global::Meziantou.Framework.QRCode.Create(text, frameworkErrorCorrectionLevel),
             };
 
             var svg = global::Meziantou.Framework.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.QRCodeSvgOptions
@@ -86,11 +116,15 @@
                 ModuleSize = 10,
             });
             qrcode = svg.Replace("<svg ", "<svg style=\"max-width:100%;height:auto;\" ", StringComparison.Ordinal);
+            qrcodeVersion = GetQRCodeVersion(generatedQRCode);
+            qrcodeModules = $"{generatedQRCode.Width} × {generatedQRCode.Height} ({generatedQRCode.Width * generatedQRCode.Height} modules)";
             errorMessage = null;
         }
         catch (InvalidOperationException ex)
         {
             qrcode = null;
+            qrcodeVersion = null;
+            qrcodeModules = null;
             errorMessage = ex.Message;
         }
     }
@@ -101,4 +135,36 @@
         MicroQR,
         Mnqr,
     }
+
+    enum QRCodeErrorCorrectionLevel
+    {
+        L,
+        M,
+        Q,
+        H,
+    }
+
+    static QRCodeErrorCorrectionLevel GetDefaultErrorCorrectionLevel(QRCodeGenerationType qrCodeType)
+        => qrCodeType switch
+        {
+            QRCodeGenerationType.Mnqr => QRCodeErrorCorrectionLevel.M,
+            _ => QRCodeErrorCorrectionLevel.Q,
+        };
+
+    static global::Meziantou.Framework.ErrorCorrectionLevel ToFrameworkErrorCorrectionLevel(QRCodeErrorCorrectionLevel errorCorrectionLevel)
+        => errorCorrectionLevel switch
+        {
+            QRCodeErrorCorrectionLevel.L => global::Meziantou.Framework.ErrorCorrectionLevel.L,
+            QRCodeErrorCorrectionLevel.M => global::Meziantou.Framework.ErrorCorrectionLevel.M,
+            QRCodeErrorCorrectionLevel.Q => global::Meziantou.Framework.ErrorCorrectionLevel.Q,
+            QRCodeErrorCorrectionLevel.H => global::Meziantou.Framework.ErrorCorrectionLevel.H,
+            _ => throw new InvalidOperationException($"Invalid error correction level: {errorCorrectionLevel}"),
+        };
+
+    static string GetQRCodeVersion(global::Meziantou.Framework.QRCode qrCode)
+        => qrCode.Type switch
+        {
+            global::Meziantou.Framework.QRCodeType.MicroQR => $"M{qrCode.Version}",
+            _ => qrCode.Version.ToString(),
+        };
 }
