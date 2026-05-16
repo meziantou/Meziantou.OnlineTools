@@ -1,0 +1,144 @@
+@page "/barcode"
+<h1>Barcode generator</h1>
+
+<div>
+    <label for="barcodeType">Barcode type</label>
+    <select id="barcodeType" class="form-control" @onchange="OnBarcodeTypeChanged">
+        <option value="@BarcodeGenerationType.Code128">Code 128</option>
+        <option value="@BarcodeGenerationType.Code39">Code 39</option>
+        <option value="@BarcodeGenerationType.Code93">Code 93</option>
+        <option value="@BarcodeGenerationType.Ean8">EAN-8</option>
+        <option value="@BarcodeGenerationType.Ean13">EAN-13</option>
+        <option value="@BarcodeGenerationType.UpcA">UPC-A</option>
+        <option value="@BarcodeGenerationType.Codabar">Codabar</option>
+        <option value="@BarcodeGenerationType.Itf">ITF</option>
+    </select>
+</div>
+
+<textarea class="form-control code" @oninput="OnTextInput"></textarea>
+<button type="button" @onclick="Click">Generate</button>
+
+<div class="barcode-output" style="max-width: 500px">
+    @(new MarkupString(barcode ?? ""))
+</div>
+@if (barcode != null)
+{
+    <div class="mt-2">
+        <strong>Type:</strong> @GetBarcodeTypeLabel(barcodeType)<br />
+        <strong>Modules:</strong> @barcodeModules
+    </div>
+}
+@if (errorMessage != null)
+{
+    <div class="alert alert-warning mt-2" role="alert">@errorMessage</div>
+}
+
+<h2>Examples</h2>
+<div>
+    <ul>
+        <li><strong>Code 128 / Code 39 / Code 93:</strong> <code>HELLO-123</code></li>
+        <li><strong>EAN-8:</strong> <code>5512345</code> (7 digits) or <code>55123457</code> (8 digits)</li>
+        <li><strong>EAN-13:</strong> <code>400638133393</code> (12 digits) or <code>4006381333931</code> (13 digits)</li>
+        <li><strong>UPC-A:</strong> <code>03600029145</code> (11 digits) or <code>036000291452</code> (12 digits)</li>
+        <li><strong>Codabar:</strong> <code>12345</code></li>
+        <li><strong>ITF:</strong> <code>123456</code> (even number of digits)</li>
+    </ul>
+</div>
+
+@code {
+    string text = "";
+    string? barcode;
+    string? barcodeModules;
+    string? errorMessage;
+    BarcodeGenerationType barcodeType = BarcodeGenerationType.Code128;
+
+    public Barcode()
+    {
+        GenerateBarcode();
+    }
+
+    void Click()
+    {
+        GenerateBarcode();
+        StateHasChanged();
+    }
+
+    void OnTextInput(ChangeEventArgs e)
+    {
+        text = e.Value?.ToString() ?? "";
+        GenerateBarcode();
+    }
+
+    void OnBarcodeTypeChanged(ChangeEventArgs e)
+    {
+        barcodeType = Enum.Parse<BarcodeGenerationType>(e.Value?.ToString() ?? nameof(BarcodeGenerationType.Code128), ignoreCase: true);
+        GenerateBarcode();
+    }
+
+    void GenerateBarcode()
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            barcode = null;
+            barcodeModules = null;
+            errorMessage = null;
+            return;
+        }
+
+        try
+        {
+            var generatedBarcode = barcodeType switch
+            {
+                BarcodeGenerationType.Code39 => global::Meziantou.Framework.Barcode.CreateCode39(text, includeChecksum: false),
+                BarcodeGenerationType.Code93 => global::Meziantou.Framework.Barcode.CreateCode93(text),
+                BarcodeGenerationType.Ean8 => global::Meziantou.Framework.Barcode.CreateEan8(text, extension: ""),
+                BarcodeGenerationType.Ean13 => global::Meziantou.Framework.Barcode.CreateEan13(text, extension: ""),
+                BarcodeGenerationType.UpcA => global::Meziantou.Framework.Barcode.CreateUpcA(text, extension: ""),
+                BarcodeGenerationType.Codabar => global::Meziantou.Framework.Barcode.CreateCodabar(text, startCharacter: 'A', stopCharacter: 'A'),
+                BarcodeGenerationType.Itf => global::Meziantou.Framework.Barcode.CreateItf(text),
+                _ => global::Meziantou.Framework.Barcode.CreateCode128(text),
+            };
+
+            var svg = global::Meziantou.Framework.BarcodeSvgRenderer.ToSvg(generatedBarcode, new global::Meziantou.Framework.BarcodeSvgOptions
+            {
+                ModuleWidth = 2,
+                ModuleHeight = 80,
+            });
+            barcode = svg.Replace("<svg ", "<svg style=\"max-width:100%;height:auto;\" ", StringComparison.Ordinal);
+            barcodeModules = $"{generatedBarcode.Width} × {generatedBarcode.Height} ({generatedBarcode.Width * generatedBarcode.Height} modules)";
+            errorMessage = null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            barcode = null;
+            barcodeModules = null;
+            errorMessage = ex.Message;
+        }
+    }
+
+    enum BarcodeGenerationType
+    {
+        Code39,
+        Code93,
+        Code128,
+        Ean8,
+        Ean13,
+        UpcA,
+        Codabar,
+        Itf,
+    }
+
+    static string GetBarcodeTypeLabel(BarcodeGenerationType barcodeType)
+        => barcodeType switch
+        {
+            BarcodeGenerationType.Code39 => "Code 39",
+            BarcodeGenerationType.Code93 => "Code 93",
+            BarcodeGenerationType.Code128 => "Code 128",
+            BarcodeGenerationType.Ean8 => "EAN-8",
+            BarcodeGenerationType.Ean13 => "EAN-13",
+            BarcodeGenerationType.UpcA => "UPC-A",
+            BarcodeGenerationType.Codabar => "Codabar",
+            BarcodeGenerationType.Itf => "ITF",
+            _ => barcodeType.ToString(),
+        };
+}
