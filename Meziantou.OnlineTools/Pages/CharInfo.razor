@@ -30,6 +30,23 @@
                             <td>@item.Block</td>
                         </tr>
                         <tr>
+                            <td class="column-info">Confusable:</td>
+                            <td>@(item.IsConfusable ? "Yes" : "No")</td>
+                        </tr>
+                        <tr>
+                            <td class="column-info">Replacement:</td>
+                            <td>
+                                @if (item.IsConfusable)
+                                {
+                                    <a href="@($"string-info?Text={Uri.EscapeDataString(item.ConfusableReplacement)}")">@item.ConfusableReplacement</a>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
                             <td class="column-info">Escape:</td>
                             <td>@item.Escape</td>
                         </tr>
