@@ -14,7 +14,10 @@
         {
             <div class="card">
                 <div class="card-body">
-                    <h3 class="card-title">@item.DisplayValue <CopyToClipboardButton Value="@item.DisplayValue" Label="character" /></h3>
+                    <div style="display:flex; align-items:center; gap:0.5rem">
+                        <h3 class="card-title" style="margin-bottom:0">@item.DisplayValue</h3>
+                        <CopyToClipboardButton Value="@item.DisplayValue" Label="character" />
+                    </div>
                     <p style="margin-bottom: 0">@item.Name</p>
                     <table>
                         <tr>
