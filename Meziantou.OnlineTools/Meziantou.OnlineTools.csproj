@@ -6,16 +6,16 @@
 
   <ItemGroup>
     <PackageReference Include="Markdig" Version="1.2.0" />
-    <PackageReference Include="Meziantou.Framework.CommandLine" Version="3.0.9" />
-    <PackageReference Include="Meziantou.Framework.HtmlToMarkdown" Version="1.0.3" />
+    <PackageReference Include="Meziantou.Framework.CommandLine" Version="3.0.10" />
+    <PackageReference Include="Meziantou.Framework.HtmlToMarkdown" Version="1.0.4" />
     <PackageReference Include="Meziantou.Framework.JsonPath" Version="2.0.2" />
-    <PackageReference Include="Meziantou.Framework.Unicode" Version="1.0.11" />
+    <PackageReference Include="Meziantou.Framework.Unicode" Version="1.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.8" PrivateAssets="all" />
-    <PackageReference Include="Meziantou.AspNetCore.Components" Version="2.0.35" />
+    <PackageReference Include="Meziantou.AspNetCore.Components" Version="2.0.36" />
     <PackageReference Include="Meziantou.Framework.ByteSize" Version="3.0.1" />
     <PackageReference Include="Meziantou.Framework.Scheduling" Version="3.0.1" />
-    <PackageReference Include="Meziantou.Framework.TextDiff" Version="2.0.3" />
+    <PackageReference Include="Meziantou.Framework.TextDiff" Version="2.0.4" />
     <PackageReference Include="Meziantou.GitLabClient" Version="1.1.26" />
     <PackageReference Include="Meziantou.Framework.QRCode" Version="1.0.9" />
     <PackageReference Include="YamlDotNet" Version="18.0.0" />
