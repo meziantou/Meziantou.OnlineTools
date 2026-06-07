@@ -177,6 +177,11 @@ a:hover {
     text-decoration: underline;
 }
 
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
 /* Forms */
 .form-group {
     margin-bottom: 1rem;
@@ -428,6 +433,39 @@ pre.result {
 
 .diff-output .diff-line {
     display: block;
+}
+
+.recording-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+.recording-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.recording-status {
+    color: var(--alert-danger-text);
+    font-weight: 500;
+}
+
+.recording-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.recording-result audio,
+.recording-result video {
+    width: min(100%, 60rem);
+    max-height: 70vh;
+    background: #000;
 }
 
 .diff-output del del,
