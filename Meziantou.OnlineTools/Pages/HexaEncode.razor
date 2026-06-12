@@ -1,0 +1,105 @@
+@page "/hexa-encode"
+@using System.IO
+@using System.Text
+@inject IJSRuntime JSRuntime
+
+<h1>Hexa Encode / Decode</h1>
+
+<textarea class="form-control code" @bind="text" @bind:event="oninput"></textarea>
+
+<select @bind="encoding">
+    <option value="utf-8">UTF-8</option>
+    <option value="utf-16">UTF-16</option>
+    <option value="utf-32">UTF-32</option>
+    <option value="ascii">ASCII</option>
+</select>
+
+<div>
+    <label>Or upload a file</label>
+    <InputFile OnChange="@OnInputFileChange" />
+</div>
+
+<div>
+    <button class="btn btn-secondary" @onclick="Encode">Encode</button>
+    <button class="btn btn-secondary" @onclick="Decode">Decode</button>
+    @if (decodedData != null)
+    {
+        <button class="btn btn-primary" @onclick="DownloadDecodedDataAsync">Download decoded data</button>
+    }
+</div>
+
+@if (result != null)
+{
+    <ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
+}
+
+@code {
+    private string? text;
+    private string? encoding;
+    private string? result;
+    private string? resultLabel;
+    private byte[]? decodedData;
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        using var stream = e.File.OpenReadStream();
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+
+        resultLabel = "Hexa";
+        result = Convert.ToHexString(ms.ToArray());
+        decodedData = null;
+    }
+
+    private void Encode()
+    {
+        resultLabel = "Hexa";
+        decodedData = null;
+
+        try
+        {
+            result = Convert.ToHexString(GetEncoding().GetBytes(text ?? ""));
+        }
+        catch (Exception ex)
+        {
+            result = ex.Message;
+        }
+    }
+
+    private void Decode()
+    {
+        resultLabel = "Decoded text";
+        decodedData = null;
+
+        try
+        {
+            decodedData = Convert.FromHexString(text ?? "");
+            result = GetEncoding().GetString(decodedData);
+        }
+        catch (Exception ex)
+        {
+            result = ex.Message;
+        }
+    }
+
+    private async Task DownloadDecodedDataAsync()
+    {
+        if (decodedData != null)
+        {
+            using var stream = new MemoryStream(decodedData);
+            using var streamReference = new DotNetStreamReference(stream);
+            await JSRuntime.InvokeVoidAsync("downloadFileFromStream", "decoded-data.bin", streamReference);
+        }
+    }
+
+    private Encoding GetEncoding()
+    {
+        return encoding switch
+        {
+            "ascii" => Encoding.ASCII,
+            "utf-16" => Encoding.Unicode,
+            "utf-32" => Encoding.UTF32,
+            _ => Encoding.UTF8,
+        };
+    }
+}
