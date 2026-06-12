@@ -1,6 +1,7 @@
 @page "/base64-encode"
 @using System.Text
 @using System.IO
+@inject IJSRuntime JSRuntime
 
 <h1>Base64 Encode / Decode</h1>
 
@@ -28,11 +29,17 @@
     <ResultValueSingle CopyLabel="@(resultLabel ?? "result")" Value="@result" />
 }
 
+@if (decodedData != null)
+{
+    <button type="button" class="btn btn-primary" @onclick="DownloadDecodedDataAsync">Download decoded data</button>
+}
+
 @code {
     string? text;
     string? encoding;
     string? result;
     string? resultLabel;
+    byte[]? decodedData;
 
     private async Task OnInputFileChange(InputFileChangeEventArgs e)
     {
@@ -40,12 +47,14 @@
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
 
+        decodedData = null;
         resultLabel = "Base64";
         result = Convert.ToBase64String(ms.ToArray());
     }
 
     void Encode()
     {
+        decodedData = null;
         resultLabel = "Base64";
         try
         {
@@ -59,14 +68,26 @@
 
     void Decode()
     {
+        decodedData = null;
         resultLabel = "Decoded text";
         try
         {
-            result = GetEncoding().GetString(Convert.FromBase64String(text ?? ""));
+            decodedData = Convert.FromBase64String(text ?? "");
+            result = GetEncoding().GetString(decodedData);
         }
         catch (Exception ex)
         {
             result = ex.Message;
+        }
+    }
+
+    async Task DownloadDecodedDataAsync()
+    {
+        if (decodedData != null)
+        {
+            using var stream = new MemoryStream(decodedData);
+            using var streamReference = new DotNetStreamReference(stream);
+            await JSRuntime.InvokeVoidAsync("downloadFileFromStream", "decoded-data.bin", streamReference);
         }
     }
 
