@@ -4,7 +4,7 @@
 
 <h1>String Info</h1>
 
-<textarea class="form-control code" @oninput="OnChange">@Text</textarea>
+<textarea class="form-control code" @bind-value="Text" @bind-value:event="oninput" @bind-value:after="Compute"></textarea>
 
 <div>
     <button class="btn btn-secondary" @onclick="NormalizeC">Normalize Form C</button>
@@ -48,12 +48,6 @@
         Compute();
     }
 
-    void OnChange(ChangeEventArgs e)
-    {
-        Text = e.Value as string;
-        Compute();
-    }
-
     void Compute()
     {
         Text ??= "";
@@ -88,10 +82,12 @@
     void NormalizeC()
     {
         Text = Text?.Normalize(NormalizationForm.FormC);
+        Compute();
     }
 
     void NormalizeD()
     {
         Text = Text?.Normalize(NormalizationForm.FormD);
+        Compute();
     }
 }
