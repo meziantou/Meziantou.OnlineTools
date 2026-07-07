@@ -28,9 +28,7 @@
     {
         try
         {
-            var deserializer = new YamlDotNet.Serialization.Deserializer();
-            using var sr = new System.IO.StringReader(text ?? "");
-            var yamlObject = deserializer.Deserialize(sr);
+            var yamlObject = Meziantou.Framework.Yaml.YamlSerializer.Deserialize<object>(text ?? "");
 
             result = JsonUtils.ToDisplayJson(yamlObject);
         }
