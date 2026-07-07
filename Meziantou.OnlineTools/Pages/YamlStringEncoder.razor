@@ -24,8 +24,7 @@
         resultLabel = "YAML string";
         try
         {
-            var serializer = new YamlDotNet.Serialization.Serializer();
-            result = serializer.Serialize(text);
+            result = Meziantou.Framework.Yaml.YamlSerializer.Serialize(text);
         }
         catch (Exception ex)
         {
@@ -38,8 +37,7 @@
         resultLabel = "Decoded text";
         try
         {
-            var serializer = new YamlDotNet.Serialization.Deserializer();
-            result = serializer.Deserialize<object>(text ?? "")?.ToString();
+            result = Meziantou.Framework.Yaml.YamlSerializer.Deserialize<object>(text ?? "")?.ToString();
         }
         catch (Exception ex)
         {
