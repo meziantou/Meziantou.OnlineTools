@@ -14,7 +14,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.11" PrivateAssets="all" />
     <PackageReference Include="Meziantou.AspNetCore.Components" Version="3.0.5" />
     <PackageReference Include="Meziantou.Framework.ByteSize" Version="4.0.2" />
-    <PackageReference Include="Meziantou.Framework.Scheduling" Version="4.0.5" />
+    <PackageReference Include="Meziantou.Framework.Scheduling" Version="4.1.0" />
     <PackageReference Include="Meziantou.Framework.TextDiff" Version="3.0.3" />
     <PackageReference Include="Meziantou.GitLabClient" Version="1.1.26" />
     <PackageReference Include="Meziantou.Framework.QRCode" Version="2.0.2" />
