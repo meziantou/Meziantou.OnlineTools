@@ -7,6 +7,8 @@ internal static class JsonUtils
     private static readonly JsonSerializerOptions IndentedSerializerOptions = new()
     {
         WriteIndented = true,
+        RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
         Converters = { new DictionaryObjectConverter() },
     };
 
