@@ -84,6 +84,8 @@ else if (hasEvaluated && errorMessage == null)
                 var value = match.Value?.ToJsonString(new JsonSerializerOptions
                 {
                     WriteIndented = true,
+                    RespectNullableAnnotations = true,
+                    RespectRequiredConstructorParameters = true,
                 }) ?? "null";
 
                 values.Add(new ResultValue(label, value));

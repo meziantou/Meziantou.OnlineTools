@@ -34,6 +34,8 @@
                 WriteIndented = indented,
                 IndentCharacter = ' ',
                 IndentSize = Math.Clamp(indentSize, 1, 8),
+                RespectNullableAnnotations = true,
+                RespectRequiredConstructorParameters = true,
             };
 
             result = JsonSerializer.Serialize(doc.RootElement, options);
