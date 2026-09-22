@@ -1,0 +1,37 @@
+@page "/phone-number-converter"
+
+<h1>Phone number converter</h1>
+
+<p>Convert a vanity phone number such as <code>123-456-FIRE</code> to an actual phone number using the standard keypad layout (<code>ABC</code> = 2, <code>DEF</code> = 3, …).</p>
+
+<div class="form-group">
+    <label for="value">Value</label>
+    <input id="value" class="form-control code" value="@value" @oninput="OnInputChanged" />
+</div>
+
+<ResultValueList Values="@results" />
+
+@code {
+    private string value = string.Empty;
+    private IReadOnlyList<ResultValue> results = [];
+
+    protected override void OnInitialized()
+    {
+        Compute();
+    }
+
+    private void OnInputChanged(ChangeEventArgs e)
+    {
+        value = e.Value?.ToString() ?? string.Empty;
+        Compute();
+    }
+
+    private void Compute()
+    {
+        results =
+        [
+            new ResultValue("Phone number", PhoneNumberUtils.ToPhoneNumber(value)),
+            new ResultValue("Digits only", PhoneNumberUtils.ToDigitsOnly(value)),
+        ];
+    }
+}
