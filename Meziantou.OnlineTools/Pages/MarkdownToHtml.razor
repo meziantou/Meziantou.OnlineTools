@@ -1,9 +1,9 @@
 @page "/markdown-to-html"
-@using Markdig
+@using Meziantou.Framework.Markdown
 
 <h1>Markdown to HTML</h1>
 
-<p>Convert Markdown to HTML using Markdig with all built-in markdown extensions enabled.</p>
+<p>Convert Markdown to HTML using Meziantou.Framework.Markdown with all built-in markdown extensions enabled.</p>
 
 <textarea class="form-control code" @bind="text"></textarea>
 
@@ -42,7 +42,7 @@
     {
         try
         {
-            result = Markdown.ToHtml(text ?? string.Empty, Pipeline);
+            result = MarkdownConverter.ToHtml(text ?? string.Empty, Pipeline);
         }
         catch (Exception ex)
         {
