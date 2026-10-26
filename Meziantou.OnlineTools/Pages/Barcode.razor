@@ -89,17 +89,17 @@
         {
             var generatedBarcode = barcodeType switch
             {
-                BarcodeGenerationType.Code39 => global::Meziantou.Framework.Barcode.CreateCode39(text, includeChecksum: false),
-                BarcodeGenerationType.Code93 => global::Meziantou.Framework.Barcode.CreateCode93(text),
-                BarcodeGenerationType.Ean8 => global::Meziantou.Framework.Barcode.CreateEan8(text, extension: ""),
-                BarcodeGenerationType.Ean13 => global::Meziantou.Framework.Barcode.CreateEan13(text, extension: ""),
-                BarcodeGenerationType.UpcA => global::Meziantou.Framework.Barcode.CreateUpcA(text, extension: ""),
-                BarcodeGenerationType.Codabar => global::Meziantou.Framework.Barcode.CreateCodabar(text, startCharacter: 'A', stopCharacter: 'A'),
-                BarcodeGenerationType.Itf => global::Meziantou.Framework.Barcode.CreateItf(text),
-                _ => global::Meziantou.Framework.Barcode.CreateCode128(text),
+                BarcodeGenerationType.Code39 => global::Meziantou.Framework.Barcodes.Barcode.CreateCode39(text, includeChecksum: false),
+                BarcodeGenerationType.Code93 => global::Meziantou.Framework.Barcodes.Barcode.CreateCode93(text),
+                BarcodeGenerationType.Ean8 => global::Meziantou.Framework.Barcodes.Barcode.CreateEan8(text, extension: ""),
+                BarcodeGenerationType.Ean13 => global::Meziantou.Framework.Barcodes.Barcode.CreateEan13(text, extension: ""),
+                BarcodeGenerationType.UpcA => global::Meziantou.Framework.Barcodes.Barcode.CreateUpcA(text, extension: ""),
+                BarcodeGenerationType.Codabar => global::Meziantou.Framework.Barcodes.Barcode.CreateCodabar(text, startCharacter: 'A', stopCharacter: 'A'),
+                BarcodeGenerationType.Itf => global::Meziantou.Framework.Barcodes.Barcode.CreateItf(text),
+                _ => global::Meziantou.Framework.Barcodes.Barcode.CreateCode128(text),
             };
 
-            var svg = global::Meziantou.Framework.BarcodeSvgRenderer.ToSvg(generatedBarcode, new global::Meziantou.Framework.BarcodeSvgOptions
+            var svg = global::Meziantou.Framework.Barcodes.BarcodeSvgRenderer.ToSvg(generatedBarcode, new global::Meziantou.Framework.Barcodes.BarcodeSvgOptions
             {
                 ModuleWidth = 2,
                 ModuleHeight = 80,

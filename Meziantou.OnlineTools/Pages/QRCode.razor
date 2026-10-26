@@ -106,12 +106,12 @@
             var frameworkErrorCorrectionLevel = ToFrameworkErrorCorrectionLevel(errorCorrectionLevel);
             var generatedQRCode = qrCodeType switch
             {
-                QRCodeGenerationType.MicroQR => global::Meziantou.Framework.QRCode.CreateMicroQR(text, frameworkErrorCorrectionLevel),
-                QRCodeGenerationType.Mnqr => global::Meziantou.Framework.QRCode.CreateRMQR(text, frameworkErrorCorrectionLevel),
-                _ => global::Meziantou.Framework.QRCode.Create(text, frameworkErrorCorrectionLevel),
+                QRCodeGenerationType.MicroQR => global::Meziantou.Framework.Barcodes.QRCode.CreateMicroQR(text, frameworkErrorCorrectionLevel),
+                QRCodeGenerationType.Mnqr => global::Meziantou.Framework.Barcodes.QRCode.CreateRMQR(text, frameworkErrorCorrectionLevel),
+                _ => global::Meziantou.Framework.Barcodes.QRCode.Create(text, frameworkErrorCorrectionLevel),
             };
 
-            var svg = global::Meziantou.Framework.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.QRCodeSvgOptions
+            var svg = global::Meziantou.Framework.Barcodes.QRCodeSvgRenderer.ToSvg(generatedQRCode, new global::Meziantou.Framework.Barcodes.QRCodeSvgOptions
             {
                 ModuleSize = 10,
             });
@@ -151,20 +151,20 @@
             _ => QRCodeErrorCorrectionLevel.Q,
         };
 
-    static global::Meziantou.Framework.ErrorCorrectionLevel ToFrameworkErrorCorrectionLevel(QRCodeErrorCorrectionLevel errorCorrectionLevel)
+    static global::Meziantou.Framework.Barcodes.ErrorCorrectionLevel ToFrameworkErrorCorrectionLevel(QRCodeErrorCorrectionLevel errorCorrectionLevel)
         => errorCorrectionLevel switch
         {
-            QRCodeErrorCorrectionLevel.L => global::Meziantou.Framework.ErrorCorrectionLevel.L,
-            QRCodeErrorCorrectionLevel.M => global::Meziantou.Framework.ErrorCorrectionLevel.M,
-            QRCodeErrorCorrectionLevel.Q => global::Meziantou.Framework.ErrorCorrectionLevel.Q,
-            QRCodeErrorCorrectionLevel.H => global::Meziantou.Framework.ErrorCorrectionLevel.H,
+            QRCodeErrorCorrectionLevel.L => global::Meziantou.Framework.Barcodes.ErrorCorrectionLevel.L,
+            QRCodeErrorCorrectionLevel.M => global::Meziantou.Framework.Barcodes.ErrorCorrectionLevel.M,
+            QRCodeErrorCorrectionLevel.Q => global::Meziantou.Framework.Barcodes.ErrorCorrectionLevel.Q,
+            QRCodeErrorCorrectionLevel.H => global::Meziantou.Framework.Barcodes.ErrorCorrectionLevel.H,
             _ => throw new InvalidOperationException($"Invalid error correction level: {errorCorrectionLevel}"),
         };
 
-    static string GetQRCodeVersion(global::Meziantou.Framework.QRCode qrCode)
+    static string GetQRCodeVersion(global::Meziantou.Framework.Barcodes.QRCode qrCode)
         => qrCode.Type switch
         {
-            global::Meziantou.Framework.QRCodeType.MicroQR => $"M{qrCode.Version}",
+            global::Meziantou.Framework.Barcodes.QRCodeType.MicroQR => $"M{qrCode.Version}",
             _ => qrCode.Version.ToString(),
         };
 }
