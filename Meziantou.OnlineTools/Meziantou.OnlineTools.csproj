@@ -17,7 +17,7 @@
     <PackageReference Include="Meziantou.Framework.Scheduling" Version="4.1.5" />
     <PackageReference Include="Meziantou.Framework.TextDiff" Version="3.0.5" />
     <PackageReference Include="Meziantou.GitLabClient" Version="1.1.26" />
-    <PackageReference Include="Meziantou.Framework.QRCode" Version="2.0.4" />
+    <PackageReference Include="Meziantou.Framework.Barcodes" Version="1.0.0" />
     <PackageReference Include="Meziantou.Framework.Yaml" Version="2.0.9" />
   </ItemGroup>
 
