@@ -7,8 +7,8 @@
   <ItemGroup>
     <PackageReference Include="Meziantou.Framework.Markdown" Version="1.0.9" />
     <PackageReference Include="Meziantou.Framework.CommandLine" Version="4.0.4" />
-    <PackageReference Include="Meziantou.Framework.HtmlToMarkdown" Version="2.0.24" />
-    <PackageReference Include="Meziantou.Framework.JsonPath" Version="3.0.11" />
+    <PackageReference Include="Meziantou.Framework.HtmlToMarkdown" Version="2.0.25" />
+    <PackageReference Include="Meziantou.Framework.JsonPath" Version="3.0.12" />
     <PackageReference Include="Meziantou.Framework.Unicode" Version="2.0.16" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.14" PrivateAssets="all" />
